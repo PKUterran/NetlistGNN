@@ -46,10 +46,10 @@ def hyperedge_from_nodelist(nodes):
 
 def prepare_data(dirname, giveniter, index, norming, outscalefac, logic_flag, hashcode, edgcap, degdim):
     posandfeats = loadmanyarrays(
-        ['sizdata_x', 'sizdata_y', 'pdata', 'xdata_' + str(giveniter), 'ydata_' + str(giveniter)], dirname)
+        ['sizdata_x', 'sizdata_y', 'pdata', f'pos_{giveniter}_xdata', f'pos_{giveniter}_ydata'], dirname)
     norm_x, norm_y = posandfeats[-2] / np.max(posandfeats[-2]), posandfeats[-1] / np.max(posandfeats[-1])
 
-    labels = np.load(dirname + 'iter_' + str(giveniter) + '_node_label_full_' + str(hashcode) + '_.npy')
+    labels = np.load(f'{dirname}iter_{giveniter}_node_label_full_{hashcode}_.npy')
     labels = labels[:, index].reshape(-1, 1)
     if norming:
         labels = outscalefac * labels / np.max(np.abs(labels))
@@ -64,7 +64,7 @@ def prepare_data(dirname, giveniter, index, norming, outscalefac, logic_flag, ha
     positions = (
         np.hstack((posandfeats[-2].reshape(-1, 1), posandfeats[-1].reshape(-1, 1))).astype(np.float32)).reshape(-1, 2)
 
-    with open(dirname + "/edg.pkl", "rb") as input_file:
+    with open(f'{dirname}/edg.pkl', 'rb') as input_file:
         edg = pickle.load(input_file)
     fullsrc, fulldst = [], []
     for e in edg.keys():
@@ -73,7 +73,7 @@ def prepare_data(dirname, giveniter, index, norming, outscalefac, logic_flag, ha
             fullsrc += u
             fulldst += v
 
-    g = dgl.DGLGraph((torch.LongTensor(fullsrc), torch.LongTensor(fulldst)))
+    g = dgl.graph((torch.LongTensor(fullsrc), torch.LongTensor(fulldst)))
     g = dgl.to_homogeneous(dgl.transform.add_self_loop(g))
 
     g.ndata['feat'] = torch.from_numpy(features[:g.number_of_nodes()])
