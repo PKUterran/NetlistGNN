@@ -11,6 +11,7 @@ with open(f'{DATA_DIR}/nodef.pkl', 'rb') as fp:
 print(type(edg))
 print(len(edg.keys()))
 print(edg[0])
+print(sum([len(v) for v in edg.values()]))
 print(type(nodef))
 print(len(nodef.keys()))
 print(nodef[0])
