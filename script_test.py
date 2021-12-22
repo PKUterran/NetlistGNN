@@ -1,8 +1,10 @@
+import json
 import os
 import random
 import string
 import argparse
 from time import time
+from typing import List, Dict, Any
 
 import numpy as np
 
@@ -17,14 +19,35 @@ from data.load_data import prepare_data
 from net.naive import TraditionalGNNModel
 from utils.sampler import ClusterIter
 
+import warnings
 
-def printout(arr1, arr2, prefix=""):
-    print(prefix + "pearson", pearsonr(arr1, arr2))
-    print(prefix + "spearman", spearmanr(arr1, arr2))
-    print(prefix + "kendall", kendalltau(arr1, arr2))
-    print(prefix + "MAE", np.sum(np.abs(arr1 - arr2)) / len(arr1))
+warnings.filterwarnings("ignore")
+
+logs: List[Dict[str, Any]] = []
+
+
+def printout(arr1, arr2, prefix="", log_prefix=""):
+    pearsonr_rho, pearsonr_pval = pearsonr(arr1, arr2)
+    spearmanr_rho, spearmanr_pval = spearmanr(arr1, arr2)
+    kendalltau_rho, kendalltau_pval = kendalltau(arr1, arr2)
+    mae = np.sum(np.abs(arr1 - arr2)) / len(arr1)
     delta = np.abs(arr1 - arr2)
-    print(prefix + "RMSE", np.sum(np.multiply(delta, delta)) / len(arr1))
+    rmse = np.sqrt(np.sum(np.multiply(delta, delta)) / len(arr1))
+    print(prefix + "pearson", pearsonr_rho, pearsonr_pval)
+    print(prefix + "spearman", spearmanr_rho, spearmanr_pval)
+    print(prefix + "kendall", kendalltau_rho, kendalltau_pval)
+    print(prefix + "MAE", mae)
+    print(prefix + "RMSE", rmse)
+    logs[-1].update({
+        f'{log_prefix}pearson_rho': pearsonr_rho,
+        f'{log_prefix}pearsonr_pval': pearsonr_pval,
+        f'{log_prefix}spearmanr_rho': spearmanr_rho,
+        f'{log_prefix}spearmanr_pval': spearmanr_pval,
+        f'{log_prefix}kendalltau_rho': kendalltau_rho,
+        f'{log_prefix}kendalltau_pval': kendalltau_pval,
+        f'{log_prefix}mae': mae,
+        f'{log_prefix}rmse': rmse,
+    })
 
 
 def get_random_string(length):
@@ -64,15 +87,16 @@ def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape):
     getmask[indices] = 1
     nctu, pred = np.multiply(nctu, getmask), np.multiply(pred, getmask)
     printout(nctu[indices] + rademacher(1e-6, len(indices)), pred[indices] + rademacher(1e-6, len(indices)),
-             "GRID_INDEX :")
-    printout(nctu, pred, "GRID_NO_INDEX :")
+             "\t\tGRID_INDEX: ", 'grid_index_')
+    printout(nctu, pred, "\t\tGRID_NO_INDEX: ", 'grid_no_index_')
     return
 
 
 argparser = argparse.ArgumentParser("Training")
+argparser.add_argument('--name', type=str, default='default')
 argparser.add_argument('--basedatadir', type=str, default='data/')
 argparser.add_argument('--test', type=str, default='superblue19')
-argparser.add_argument('--epochs', type=int, default=500)
+argparser.add_argument('--epochs', type=int, default=100)
 argparser.add_argument('--architecture', type=str, default='200,160')
 argparser.add_argument('--degdim', type=int, default=0)
 argparser.add_argument('--batch_size_GCN', type=int, default=256)
@@ -80,12 +104,12 @@ argparser.add_argument('--clusters_per_graph', type=int, default=100)
 argparser.add_argument('--clusters_per_batch', type=int, default=1)
 argparser.add_argument('--graph_type', type=str, default='SAGE')
 argparser.add_argument('--heads', type=str, default='1')
-argparser.add_argument('--device', type=str, default='cpu')
+argparser.add_argument('--device', type=str, default='cuda:0')
 argparser.add_argument('--hashcode', type=str, default='000000')
 argparser.add_argument('--logic_features', type=bool, default=True)
 argparser.add_argument('--normalized_labels', type=bool, default=False)
 argparser.add_argument('--idx', type=int, default=8)
-argparser.add_argument('--evalfreq', type=int, default=5)
+argparser.add_argument('--train_epoch', type=int, default=5)
 argparser.add_argument('--mintrainidx', type=int, default=19)
 argparser.add_argument('--maxtrainidx', type=int, default=20)
 argparser.add_argument('--itermax', type=int, default=2500)
@@ -137,7 +161,8 @@ for i in range(args.mintrainidx, args.itermax):
         test_graph = prepare_data(args.basedatadir + args.test + '_processed/', i, args.idx, args.normalized_labels,
                                   args.outscalefac, args.logic_features, args.hashcode, args.edgecap, args.degdim)
 
-rstr1, rstr2 = get_random_string(10), get_random_string(10)
+# rstr1, rstr2 = get_random_string(10), get_random_string(10)
+rstr1, rstr2 = 'fycgckbesg', 'wdrasukoue'
 
 bg = dgl.batch(bg)
 
@@ -149,38 +174,54 @@ test_cluster_iterator = ClusterIter("circuit_new" + rstr2, test_graph, args.clus
 model = TraditionalGNNModel(args.graph_type, arch, int(args.heads), args.outtype, args.scalefac).to(device)
 loss_f = nn.MSELoss()
 
-opt = torch.optim.Adam(model.parameters(), lr=5e-4)
+opt = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=5e-4)
+scheduler = torch.optim.lr_scheduler.StepLR(opt, 1, gamma=0.995)
 
-for epoch in range(args.epochs):
-    t1 = time()
-    model.train()
-    for j, cluster in enumerate(cluster_iterator):
-        cluster = cluster.to(device)
-        opt.zero_grad()
-        pred = model.wholeforward(cluster, cluster.ndata['feat'])
-        batch_labels = cluster.ndata['label']
-        loss = loss_f(pred, batch_labels.float())
-        loss.backward()
-        opt.step()
-    print("Training time per epoch", time() - t1)
-    if epoch % args.evalfreq == 0:
-        outputdata = np.zeros((test_graph.number_of_nodes(), 4))
-        i = 0
-        t2 = time()
-        model.eval()
-        with torch.no_grad():
-            for z, cluster_z in enumerate(test_cluster_iterator):
-                cluster_z = cluster_z.to(device)
-                pred = model.wholeforward(cluster_z, cluster_z.ndata['feat'])
-                output_labels = cluster_z.ndata['label']
-                output_pos = (cluster_z.ndata['rawpos'].cpu().data.numpy())
-                output_predictions = pred
-                tgt = output_labels.cpu().data.numpy().flatten()
-                prd = output_predictions.cpu().data.numpy().flatten()
-                l = len(tgt)
-                outputdata[i:i + l, 0], outputdata[i:i + l, 1], outputdata[i:i + l, 2:4] = tgt, prd, output_pos
-                i += l
-        outputdata = outputdata[:i, :]
-        get_grid_level_corr(outputdata, args.binx, args.biny, args.xshape, args.yshape)
-        printout(outputdata[:, 0], outputdata[:, 1], "NODE_LEVEL :")
-        print("inference time", time() - t2)
+LOG_DIR = f'log/{args.test}'
+if not os.path.isdir(LOG_DIR):
+    os.mkdir(LOG_DIR)
+
+for epoch in range(0, args.epochs + 1):
+    print(f'##### EPOCH {epoch} #####')
+    print(f'\tLearning rate: {opt.state_dict()["param_groups"][0]["lr"]}')
+    logs.append({'epoch': epoch})
+    t0 = time()
+    if epoch:
+        model.train()
+        for _ in range(args.train_epoch):
+            t1 = time()
+            for j, cluster in enumerate(cluster_iterator):
+                cluster = cluster.to(device)
+                opt.zero_grad()
+                pred = model.wholeforward(cluster, cluster.ndata['feat'])
+                batch_labels = cluster.ndata['label']
+                loss = loss_f(pred, batch_labels.float())
+                loss.backward()
+                opt.step()
+            scheduler.step()
+            print(f"\tTraining time per epoch: {time() - t1}")
+    logs[-1].update({'train_time': time() - t0})
+    outputdata = np.zeros((test_graph.number_of_nodes(), 4))
+    i = 0
+    t2 = time()
+    model.eval()
+    with torch.no_grad():
+        for z, cluster_z in enumerate(test_cluster_iterator):
+            cluster_z = cluster_z.to(device)
+            pred = model.wholeforward(cluster_z, cluster_z.ndata['feat'])
+            output_labels = cluster_z.ndata['label']
+            output_pos = (cluster_z.ndata['rawpos'].cpu().data.numpy())
+            output_predictions = pred
+            tgt = output_labels.cpu().data.numpy().flatten()
+            prd = output_predictions.cpu().data.numpy().flatten()
+            l = len(tgt)
+            outputdata[i:i + l, 0], outputdata[i:i + l, 1], outputdata[i:i + l, 2:4] = tgt, prd, output_pos
+            i += l
+    outputdata = outputdata[:i, :]
+    get_grid_level_corr(outputdata, args.binx, args.biny, args.xshape, args.yshape)
+    printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", 'node_level_')
+    print("\tinference time", time() - t2)
+    logs[-1].update({'eval_time': time() - t2})
+    with open(f'{LOG_DIR}/{args.name}.json', 'w+') as fp:
+        json.dump(logs, fp)
+
