@@ -41,12 +41,12 @@ class ClusterIter(object):
         # cache the partitions of known datasets&partition number
         if dn:
             fn = os.path.join('./datasets/', dn + '_{}.npy'.format(psize))
-            #if os.path.exists(fn):
-            #    self.par_li = np.load(fn, allow_pickle=True)
-            #else:
-            os.makedirs('./datasets/', exist_ok=True)
-            self.par_li = get_partition_list(self.g, psize)
-            np.save(fn, self.par_li)
+            if os.path.exists(fn):
+                self.par_li = np.load(fn, allow_pickle=True)
+            else:
+                os.makedirs('./datasets/', exist_ok=True)
+                self.par_li = get_partition_list(self.g, psize)
+                np.save(fn, self.par_li)
         else:
             self.par_li = get_partition_list(self.g, psize)
         self.max = int((psize) // batch_size)
