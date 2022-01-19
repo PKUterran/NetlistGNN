@@ -1,15 +1,16 @@
+import os
 import numpy as np
 import pickle
 import torch
 import dgl
 import dgl.function as fn
+import tqdm
+
+from dgl.transform import add_self_loop, metis_partition
+from typing import Tuple, List, Dict
 
 
-def loadmanyarrays(listofnames, commonprefix):
-    return [np.load(commonprefix + listofnames[i] + '.npy') for i in range(len(listofnames))]
-
-
-def FOaverage(g):
+def fo_average(g):
     degrees = g.out_degrees(g.nodes()).type(torch.float32)
     g.ndata['addnlfeat'] = (g.ndata['feat']) / degrees.view(-1, 1)
     g.ndata['inter'] = torch.zeros_like(g.ndata['feat'])
@@ -23,70 +24,140 @@ def FOaverage(g):
     return hop1
 
 
-def kthorderdegree(g, k):
-    degreearr = np.zeros((g.number_of_nodes(), k))
-    for z in range(0, g.number_of_nodes()):
-        seeds = torch.LongTensor([z])
-        for w in range(0, k):
-            _, succs = g.out_edges(seeds)
-            seeds = torch.cat([succs, seeds])
-            degreearr[z, w] = torch.numel(torch.unique(seeds))
-    return degreearr.astype(np.float32)
+def get_partition_list(g, p_size):
+    p_gs = metis_partition(g, p_size)
+    graphs = []
+    for k, val in p_gs.items():
+        nids = val.ndata[dgl.NID]
+        nids = nids.numpy()
+        graphs.append(nids)
+    return graphs
 
 
-def hyperedge_from_nodelist(nodes):
-    src, dst = [], []
-    for i in range(0, len(nodes)):
-        for j in range(0, len(nodes)):
-            if j != i:
-                src += [nodes[i], nodes[j]]
-                dst += [nodes[j], nodes[i]]
-    return src, dst
+def get_partition_list_random(g, p_size):
+    nids = g.nodes()
+    nids = np.random.permutation(nids)
+    return [nids[i::p_size] for i in range(p_size)]
 
 
-def prepare_data(dirname, giveniter, index, norming, outscalefac, logic_flag, hashcode, edgcap, degdim):
-    posandfeats = loadmanyarrays(
-        ['sizdata_x', 'sizdata_y', 'pdata', f'pos_{giveniter}_xdata', f'pos_{giveniter}_ydata'], dirname)
-    norm_x, norm_y = posandfeats[-2] / np.max(posandfeats[-2]), posandfeats[-1] / np.max(posandfeats[-1])
+def node_pairs_among(nodes):
+    us = []
+    vs = []
+    for u in nodes:
+        for v in nodes:
+            if u == v:
+                continue
+            us.append(u)
+            vs.append(v)
+    return us, vs
 
-    labels = np.load(f'{dirname}iter_{giveniter}_node_label_full_{hashcode}_.npy')
-    labels = labels[:, index].reshape(-1, 1)
-    if norming:
-        labels = outscalefac * labels / np.max(np.abs(labels))
 
-    features = (
-        np.hstack((posandfeats[0].reshape(-1, 1), posandfeats[1].reshape(-1, 1), posandfeats[2].reshape(-1, 1))).astype(
-            np.float32)).reshape(-1, 3)
+def load_data(dir_name: str, given_iter, index: int, hashcode: str,
+              graph_scale: int = 1000, bin_x: float = 40, bin_y: float = 32, force_save=False, use_tqdm=True
+              ) -> List[Tuple[dgl.DGLGraph, dgl.DGLHeteroGraph, List[dgl.DGLGraph]]]:
+    file_path = f'{dir_name}/graphs_{given_iter}.pickle'
+    if os.path.exists(file_path) and not force_save:
+        with open(file_path, 'rb') as fp:
+            list_tuple_graph = pickle.load(fp)
+        return list_tuple_graph
 
-    if not logic_flag:
-        features = (np.hstack((features, norm_x, norm_y)).astype(np.float32)).reshape(-1, 5)
+    with open(f'{dir_name}/edge.pkl', 'rb') as fp:
+        edge = pickle.load(fp)
+    sizdata_x = np.load(f'{dir_name}/sizdata_x.npy')
+    sizdata_y = np.load(f'{dir_name}/sizdata_y.npy')
+    pdata = np.load(f'{dir_name}/pdata.npy')
+    xdata = np.load(f'{dir_name}/xdata_{given_iter}.npy')
+    ydata = np.load(f'{dir_name}/ydata_{given_iter}.npy')
+    labels = np.load(f'{dir_name}/iter_{given_iter}_node_label_full_{hashcode}_.npy')
+    labels = labels[:, index]
+    n_node = labels.shape[0]
 
-    positions = (
-        np.hstack((posandfeats[-2].reshape(-1, 1), posandfeats[-1].reshape(-1, 1))).astype(np.float32)).reshape(-1, 2)
+    node_hv = torch.tensor(np.vstack((sizdata_x, sizdata_y, pdata)), dtype=torch.float32).t()
+    node_pos = torch.tensor(np.vstack((xdata, ydata)), dtype=torch.float32).t()
 
-    with open(f'{dirname}/edg.pkl', 'rb') as input_file:
-        edg = pickle.load(input_file)
-    fullsrc, fulldst = [], []
-    for e in edg.keys():
-        if (len(edg[e]) > 1) and (len(edg[e]) < edgcap):
-            u, v = hyperedge_from_nodelist(edg[e])
-            fullsrc += u
-            fulldst += v
+    # homo_graph
+    us, vs = [], []
+    for net, list_node_feats in edge.items():
+        nodes = [node_feats[0] for node_feats in list_node_feats]
+        us_, vs_ = node_pairs_among(nodes)
+        us.extend(us_)
+        vs.extend(vs_)
+    homo_graph = add_self_loop(dgl.graph((us, vs), num_nodes=n_node))
 
-    g = dgl.graph((torch.LongTensor(fullsrc), torch.LongTensor(fulldst)))
-    g = dgl.to_homogeneous(dgl.transform.add_self_loop(g))
+    print(f'\t# of nodes: {n_node}')
+    homo_graph.ndata['pos'] = node_pos[:n_node, :]
+    homo_graph.ndata['feat'] = node_hv[:n_node, :]
+    extra = fo_average(homo_graph)
+    homo_graph.ndata['feat'] = torch.cat([homo_graph.ndata['feat'], extra], dim=1)
+    homo_graph.ndata['label'] = torch.tensor(labels[:n_node], dtype=torch.float32)
+    partition_list = get_partition_list(homo_graph, int(np.ceil(n_node / graph_scale)))
+    # partition_list = get_partition_list_random(homo_graph, int(np.ceil(n_node / graph_scale)))
+    list_homo_graph = [dgl.node_subgraph(homo_graph, partition) for partition in partition_list]
+    print('\thomo_graph generated')
 
-    g.ndata['feat'] = torch.from_numpy(features[:g.number_of_nodes()])
-    g.ndata['rawpos'] = torch.from_numpy(positions[:g.number_of_nodes()])
+    # grid_graph
+    grid_graphs = []
+    for x_offset, y_offset in [(0, 0), (bin_x / 2, 0), (0, bin_y / 2), (bin_x / 2, bin_y / 2)]:
+        box_node = {}
+        iter_sp = tqdm.tqdm(enumerate(zip(sizdata_x, sizdata_y, xdata, ydata)), total=n_node) \
+            if use_tqdm else enumerate(zip(sizdata_x, sizdata_y, xdata, ydata))
+        for i, (sx, sy, px, py) in iter_sp:
+            if i >= n_node:
+                continue
+            if px == 0 and py == 0:
+                continue
+            px += x_offset
+            py += y_offset
+            x_1, x_2 = int(px / bin_x), int((px + sx) / bin_x)
+            y_1, y_2 = int(py / bin_y), int((py + sy) / bin_y)
+            for x in range(x_1, x_2 + 1):
+                for y in range(y_1, y_2 + 1):
+                    box_node.setdefault(f'{x}-{y}', []).append(i)
+        us, vs = [], []
+        # print([len(nodes) for nodes in box_node.values()])
+        # exit(123)
+        for nodes in box_node.values():
+            us_, vs_ = node_pairs_among(nodes)
+            us.extend(us_)
+            vs.extend(vs_)
+        grid_graph = add_self_loop(dgl.graph((us, vs), num_nodes=n_node))
+        grid_graphs.append(grid_graph)
 
-    extra = FOaverage(g)
-    print(np.shape(labels))
-    g.ndata['label'] = torch.from_numpy(labels[:g.number_of_nodes()])
+    list_grid_graphs = [[dgl.node_subgraph(grid_graph, partition) for grid_graph in grid_graphs]
+                        for partition in partition_list]
+    print('\tgrid_graphs generated')
 
-    idxarr = np.where(((posandfeats[-2])[:g.number_of_nodes()]) >= 2)[0]
-    g.ndata['feat'] = torch.cat([g.ndata['feat'], extra], dim=1)
-    if degdim >= 1:
-        get = kthorderdegree(g, degdim)
-        g.ndata['feat'] = torch.cat([g.ndata['feat'], torch.from_numpy(get)], dim=1)
+    # hetero_graph
+    us, vs, he = [], [], []
+    net_degree = []
+    for net, list_node_feats in edge.items():
+        net_degree.append(len(list_node_feats))
+        for node_feats in list_node_feats:
+            us.append(node_feats[0])
+            vs.append(net)
+            he.append([node_feats[1], node_feats[2], node_feats[3]])
+    net_hv = torch.unsqueeze(torch.tensor(net_degree, dtype=torch.float32), dim=-1)
 
-    return g.subgraph(idxarr.astype(np.int32))
+    hetero_graph = dgl.heterograph({
+        ('node', 'pins', 'net'): (us, vs),
+        ('net', 'pinned', 'node'): (vs, us),
+    }, num_nodes_dict={'node': n_node, 'net': len(net_degree)})
+    hetero_graph.nodes['node'].data['hv'] = homo_graph.ndata['feat']
+    hetero_graph.nodes['net'].data['hv'] = net_hv
+    hetero_graph.edges['pins'].data['he'] = torch.tensor(he, dtype=torch.float32)
+    hetero_graph.edges['pinned'].data['he'] = torch.tensor(he, dtype=torch.float32)
+
+    list_hetero_graph = []
+    iter_partition_list = tqdm.tqdm(partition_list, total=len(partition_list)) if use_tqdm else partition_list
+    for partition in iter_partition_list:
+        part_hetero_graph = dgl.node_subgraph(hetero_graph, nodes={'node': partition, 'net': hetero_graph.nodes('net')})
+        remove_net_ids = [net_id for net_id in part_hetero_graph.nodes('net')
+                          if part_hetero_graph.in_degrees(net_id, etype='pins') == 0]
+        part_hetero_graph.remove_nodes(remove_net_ids, ntype='net')
+        list_hetero_graph.append(part_hetero_graph)
+    print('\thetero_graph generated')
+
+    list_tuple_graph = list(zip(list_homo_graph, list_hetero_graph, list_grid_graphs))
+    with open(file_path, 'wb+') as fp:
+        pickle.dump(list_tuple_graph, fp)
+    return list_tuple_graph

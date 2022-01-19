@@ -3,7 +3,44 @@
 密码：sgj_fzbz_pku1898
 https://hz.matpool.com:27838?token=khtqG9PjqB
 
+ssh -p 27928 ysw@hz.matpool.com
 ssh -p 27928 root@hz.matpool.com
-nQKAtWP5qSdY=@nK
+[B8,W3[yS0z4f#xM
 
-scp -p 27928 root@hz.matpool.com:~/ysw/NetlistGNN/datasets/* datasets
+scp -p 27928 ysw@hz.matpool.com:~/NetlistGNN/datasets/* datasets
+scp -p 27928 -r data/*_processed ysw@hz.matpool.com:~/NetlistGNN/data
+
+cmake .. -DCMAKE_INSTALL_PREFIX=your_install_path -DPYTHON_EXECUTABLE=$(which python) -DBOOST_LIBRARYDIR=/usr/local/boost_1_59_0/lib -DBOOST_INCLUDEDIR=/usr/local/boost_1_59_0/include
+cmake .. -DCMAKE_INSTALL_PREFIX=fullpath/to/DREAMPlace -DPYTHON_EXECUTABLE=$(which python) -DBOOST_LIBRARYDIR=/usr/local/boost_1_59_0/lib -DBOOST_INCLUDEDIR=/usr/local/boost_1_59_0/include
+ -DCMAKE_CXX_ABI=1
+ -DCMAKE_CUDA_FLAGS=-gencode=arch=compute_80,code=sm_80
+
+export TORCH_CUDA_ARCH_LIST="7.5"
+
+rm /usr/local/cuda
+ln -s /usr/local/cuda-11.1 /usr/local/cuda
+rm /usr/local/cuda
+ln -s /usr/local/cuda-10.1 /usr/local/cuda
+
+sudo rm /usr/bin/gcc
+sudo rm /usr/bin/g++
+sudo ln -s /usr/bin/gcc-7 /usr/bin/gcc
+sudo ln -s /usr/bin/g++-7 /usr/bin/g++
+sudo rm /usr/bin/gcc
+sudo rm /usr/bin/g++
+sudo ln -s /usr/bin/gcc-5 /usr/bin/gcc
+sudo ln -s /usr/bin/g++-5 /usr/bin/g++
+
+pip install torch==1.8.1+cu101 torchvision==0.9.1+cu101 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
+pip install torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
+
+update-alternatives --remove g++-5 /usr/bin/g++-5
+update-alternatives --remove g++-7 /usr/bin/g++-7
+update-alternatives --install /usr/bin/g++ g++-5 /usr/bin/g++-5 50
+update-alternatives --install /usr/bin/g++ g++-7 /usr/bin/g++-7 70
+
+sysv-rc-conf --list
+
+service docker restart
+service docker start
+docker pull limbo018/dreamplace:cuda

@@ -15,7 +15,7 @@ from scipy.stats import pearsonr, spearmanr, kendalltau
 import torch
 import torch.nn as nn
 
-from data.load_data import prepare_data
+from data.load_data_backup import prepare_data
 from net.naive import TraditionalGNNModel
 from utils.sampler import ClusterIter
 
@@ -162,13 +162,13 @@ for i in range(args.mintrainidx, args.itermax):
                                   args.outscalefac, args.logic_features, args.hashcode, args.edgecap, args.degdim)
 
 # rstr1, rstr2 = get_random_string(10), get_random_string(10)
-rstr1, rstr2 = 'fycgckbesg', 'wdrasukoue'
+rstr1, rstr2 = f'{args.mintrainidx}-{args.maxtrainidx}', f'{args.test}'
 
 bg = dgl.batch(bg)
 
-cluster_iterator = ClusterIter("circuit" + rstr1, bg, args.clusters_per_graph * found_graphs, args.clusters_per_batch,
+cluster_iterator = ClusterIter("circuit_" + rstr1, bg, args.clusters_per_graph * found_graphs, args.clusters_per_batch,
                                range(bg.number_of_nodes()), use_pp=0)
-test_cluster_iterator = ClusterIter("circuit_new" + rstr2, test_graph, args.clusters_per_graph, args.clusters_per_batch,
+test_cluster_iterator = ClusterIter("circuit_" + rstr2, test_graph, args.clusters_per_graph, args.clusters_per_batch,
                                     range(test_graph.number_of_nodes()), use_pp=0)
 
 model = TraditionalGNNModel(args.graph_type, arch, int(args.heads), args.outtype, args.scalefac).to(device)
