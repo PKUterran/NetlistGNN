@@ -88,6 +88,10 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     homo_graph.ndata['pos'] = node_pos[:n_node, :]
     homo_graph.ndata['feat'] = node_hv[:n_node, :]
     extra = fo_average(homo_graph)
+    homo_graph.ndata.pop('inter')
+    homo_graph.ndata.pop('addnlfeat')
+    homo_graph.ndata.pop('wts')
+    homo_graph.ndata.pop('wtmsg')
     homo_graph.ndata['feat'] = torch.cat([homo_graph.ndata['feat'], extra], dim=1)
     homo_graph.ndata['label'] = torch.tensor(labels[:n_node], dtype=torch.float32)
     partition_list = get_partition_list(homo_graph, int(np.ceil(n_node / graph_scale)))
@@ -144,7 +148,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     }, num_nodes_dict={'node': n_node, 'net': len(net_degree)})
     hetero_graph.nodes['node'].data['hv'] = homo_graph.ndata['feat']
     hetero_graph.nodes['net'].data['hv'] = net_hv
-    hetero_graph.edges['pins'].data['he'] = torch.tensor(he, dtype=torch.float32)
+    # hetero_graph.edges['pins'].data['he'] = torch.tensor(he, dtype=torch.float32)
     hetero_graph.edges['pinned'].data['he'] = torch.tensor(he, dtype=torch.float32)
 
     list_hetero_graph = []

@@ -96,6 +96,10 @@ def process_data(dir_name: str, given_iter, index: int, hashcode: str,
     homo_graph = add_self_loop(dgl.graph((us, vs), num_nodes=n_node))
     homo_graph.ndata['feat'] = node_hv
     extra = fo_average(homo_graph)
+    homo_graph.ndata.pop('inter')
+    homo_graph.ndata.pop('addnlfeat')
+    homo_graph.ndata.pop('wts')
+    homo_graph.ndata.pop('wtmsg')
     homo_graph.ndata['feat'] = torch.cat([homo_graph.ndata['feat'], extra], dim=1)
     print(homo_graph.ndata['feat'])
     homo_graph.ndata['label'] = torch.tensor(labels, dtype=torch.float32)
@@ -120,7 +124,7 @@ def process_data(dir_name: str, given_iter, index: int, hashcode: str,
     })
     hetero_graph.nodes['node'].data['hv'] = homo_graph.ndata['feat']
     hetero_graph.nodes['net'].data['hv'] = net_hv
-    hetero_graph.edges['pins'].data['he'] = torch.tensor(he, dtype=torch.float32)
+    # hetero_graph.edges['pins'].data['he'] = torch.tensor(he, dtype=torch.float32)
     hetero_graph.edges['pinned'].data['he'] = torch.tensor(he, dtype=torch.float32)
 
     list_hetero_graph = []
@@ -171,8 +175,8 @@ if __name__ == '__main__':
     # dump_data()
     _, list_hg, list_ggs = process_data(DATA_DIR, 900, 8, '000000')
 
-    model = HyperGNN2D(4, 1, 3, DEFAULT_CONFIG)
+    model = HyperGNN2D(4, 1, 3, 1, DEFAULT_CONFIG)
     for i, (hg, ggs) in enumerate(zip(list_hg, list_ggs)):
-        node_feat = model.forward(hg.nodes['node'].data['hv'], hg.edges['pins'].data['he'], hg.nodes['net'].data['hv'],
-                                  hg, ggs)
-        print(node_feat)
+        pred = model.forward(hg.nodes['node'].data['hv'], hg.nodes['net'].data['hv'], hg.edges['pinned'].data['he'],
+                             hg, ggs)
+        print(pred)

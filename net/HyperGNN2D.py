@@ -103,9 +103,9 @@ class HyperGNN2D(nn.Module):
 
         output_predictions = self.output_layer(node_feat)
         if self.activation == 'sig':
-            output_predictions = F.sigmoid(output_predictions)
+            output_predictions = torch.sigmoid(output_predictions)
         elif self.activation == 'tanh':
-            output_predictions = F.tanh(output_predictions)
+            output_predictions = torch.tanh(output_predictions)
         else:
             assert False, f'Undefined activation {self.activation}'
         return output_predictions

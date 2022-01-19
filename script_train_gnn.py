@@ -96,6 +96,8 @@ arch.insert(0, 2 * nfeats + args.degdim)
 arch.append(1)
 
 train_dataset_names = [
+    'superblue9_processed',
+    'superblue14_processed',
     'superblue16_processed',
 ]
 test_dataset_names = [
@@ -111,8 +113,13 @@ for dataset_name in train_dataset_names:
             list_tuple_graph = load_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
                                          graph_scale=args.graph_scale,
                                          bin_x=args.binx, bin_y=args.biny, force_save=False)
+            # for tg in list_tuple_graph:
+            #     print(tg[0])
+            #     print(tg[1])
+            #     print(tg[2][0])
+            #     break
             train_list_tuple_graph.extend(list_tuple_graph)
-
+# exit(123)
 for dataset_name in test_dataset_names:
     for i in range(0, args.itermax):
         if os.path.isfile(f'data/{dataset_name}/iter_{i}_node_label_full_{args.hashcode}_.npy'):
