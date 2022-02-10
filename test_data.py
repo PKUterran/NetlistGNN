@@ -141,9 +141,10 @@ def process_data(dir_name: str, given_iter, index: int, hashcode: str,
 
     list_hetero_graph = []
     for partition in partition_list:
+        partition_set = set(partition)
         keep_net_ids = set()
         for net_id, node_id in zip(*[ns.tolist() for ns in hetero_graph.edges(etype='pinned')]):
-            if node_id in partition:
+            if node_id in partition_set:
                 keep_net_ids.add(net_id)
         part_hetero_graph = dgl.node_subgraph(hetero_graph, nodes={'node': partition, 'net': list(keep_net_ids)})
         # remove_net_ids = [net_id for net_id in part_hetero_graph.nodes('net')
