@@ -40,15 +40,28 @@ def get_partition_list_random(g, p_size):
     return [nids[i::p_size] for i in range(p_size)]
 
 
-def node_pairs_among(nodes):
+def node_pairs_among(nodes, max_cap=-1):
     us = []
     vs = []
-    for u in nodes:
-        for v in nodes:
-            if u == v:
-                continue
-            us.append(u)
-            vs.append(v)
+    if max_cap == -1 or len(nodes) <= max_cap:
+        for u in nodes:
+            for v in nodes:
+                if u == v:
+                    continue
+                us.append(u)
+                vs.append(v)
+    else:
+        for u in nodes:
+            vs_ = np.random.permutation(nodes)
+            left = max_cap - 1
+            for v_ in vs_:
+                if left == 0:
+                    break
+                if u == v_:
+                    continue
+                us.append(u)
+                vs.append(v_)
+                left -= 1
     return us, vs
 
 
@@ -79,7 +92,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     us, vs = [], []
     for net, list_node_feats in edge.items():
         nodes = [node_feats[0] for node_feats in list_node_feats]
-        us_, vs_ = node_pairs_among(nodes)
+        us_, vs_ = node_pairs_among(nodes, max_cap=8)
         us.extend(us_)
         vs.extend(vs_)
     homo_graph = add_self_loop(dgl.graph((us, vs), num_nodes=n_node))
@@ -155,8 +168,12 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     iter_partition_list = tqdm.tqdm(partition_list, total=len(partition_list)) if use_tqdm else partition_list
     for partition in iter_partition_list:
         part_hetero_graph = dgl.node_subgraph(hetero_graph, nodes={'node': partition, 'net': hetero_graph.nodes('net')})
-        remove_net_ids = [net_id for net_id in part_hetero_graph.nodes('net')
-                          if part_hetero_graph.in_degrees(net_id, etype='pins') == 0]
+        keep_net_ids = set()
+        for net_id, node_id in zip(*[ns.tolist() for ns in hetero_graph.edges(etype='pinned')]):
+            if node_id in partition:
+                keep_net_ids.add(net_id)
+        all_net_ids = set(part_hetero_graph.nodes('net').tolist())
+        remove_net_ids = all_net_ids - keep_net_ids
         part_hetero_graph.remove_nodes(remove_net_ids, ntype='net')
         list_hetero_graph.append(part_hetero_graph)
     print('\thetero_graph generated')

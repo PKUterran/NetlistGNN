@@ -55,5 +55,7 @@ class TraditionalGNNModel(nn.Module):
         init_x = x
         for i in range(0, len(self.layers) - 1):
             x = F.tanh(self.layers[i](g, x))
+            if len(x.shape) == 3:
+                x = x.reshape([-1, x.shape[-1]])
         feats = (torch.cat([x, init_x], dim=1))
         return self.post(feats)

@@ -47,7 +47,7 @@ def printout(arr1, arr2, prefix="", log_prefix=""):
 
 
 argparser = argparse.ArgumentParser("Training")
-argparser.add_argument('--name', type=str, default='SAGE')
+argparser.add_argument('--name', type=str, default='GCN-pos')
 argparser.add_argument('--basedatadir', type=str, default='data/')
 argparser.add_argument('--test', type=str, default='superblue19')
 argparser.add_argument('--epochs', type=int, default=100)
@@ -56,11 +56,11 @@ argparser.add_argument('--degdim', type=int, default=0)
 argparser.add_argument('--batch_size_GCN', type=int, default=256)
 argparser.add_argument('--clusters_per_graph', type=int, default=100)
 argparser.add_argument('--clusters_per_batch', type=int, default=1)
-argparser.add_argument('--graph_type', type=str, default='SAGE')
+argparser.add_argument('--graph_type', type=str, default='GCN')
 argparser.add_argument('--heads', type=str, default='1')
 argparser.add_argument('--device', type=str, default='cuda:0')
 argparser.add_argument('--hashcode', type=str, default='000000')
-argparser.add_argument('--logic_features', type=bool, default=True)
+argparser.add_argument('--logic_features', type=bool, default=False)
 argparser.add_argument('--normalized_labels', type=bool, default=False)
 argparser.add_argument('--idx', type=int, default=8)
 argparser.add_argument('--train_epoch', type=int, default=5)
@@ -90,18 +90,19 @@ else:
 
 assert args.graph_type in ['GCN', 'SAGE', 'GAT']
 
-nfeats = 3
+if args.logic_features:
+    nfeats = 3
+else:
+    nfeats = 4
 
 arch.insert(0, 2 * nfeats + args.degdim)
 arch.append(1)
 
 train_dataset_names = [
-    'superblue9_processed',
     'superblue14_processed',
-    'superblue16_processed',
 ]
 test_dataset_names = [
-    'superblue19_processed',
+    'superblue16_processed',
 ]
 
 train_list_tuple_graph, test_list_tuple_graph = [], []
@@ -175,7 +176,8 @@ for epoch in range(0, args.epochs + 1):
                 optimizer.zero_grad()
                 pred = model.wholeforward(
                     g=homo_graph,
-                    x=homo_graph.ndata['feat']
+                    x=homo_graph.ndata['feat'] if args.logic_features
+                    else torch.cat([homo_graph.ndata['feat'], homo_graph.ndata['pos']], dim=-1)
                 )
                 batch_labels = homo_graph.ndata['label']
                 loss = loss_f(pred.view(-1), batch_labels.float())
@@ -198,7 +200,8 @@ for epoch in range(0, args.epochs + 1):
                 hmg, _, _ = to_device(hmg, htg, ggs)
                 prd = model.wholeforward(
                     g=hmg,
-                    x=hmg.ndata['feat']
+                    x=hmg.ndata['feat'] if args.logic_features
+                    else torch.cat([hmg.ndata['feat'], hmg.ndata['pos']], dim=-1)
                 )
                 output_labels = hmg.ndata['label']
                 output_pos = (hmg.ndata['pos'].cpu().data.numpy())

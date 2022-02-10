@@ -69,15 +69,19 @@ class HyperGNN2D(nn.Module):
         self.node_lin = nn.Linear(self.in_node_feats, self.hidden_node_feats)
         self.net_lin = nn.Linear(self.in_net_feats, self.hidden_net_feats)
         self.pin_lin = nn.Linear(self.in_pin_feats, self.hidden_pin_feats)
-        self.list_node_net_gnn = nn.ModuleList(
-            [NodeNetGNN(self.hidden_node_feats, self.hidden_net_feats, self.hidden_pin_feats,
-                        self.out_node_feats, self.out_net_feats) for _ in range(self.n_layer)]
-        )
-        self.list_grid_gnn = nn.ModuleList(
-            [GridGNN(self.hidden_node_feats, self.out_grid_feats, self.grid_heads) for _ in range(self.n_layer)]
-        )
+        if self.out_node_feats:
+            self.list_node_net_gnn = nn.ModuleList(
+                [NodeNetGNN(self.hidden_node_feats, self.hidden_net_feats, self.hidden_pin_feats,
+                            self.out_node_feats, self.out_net_feats) for _ in range(self.n_layer)]
+            )
+        if self.out_grid_feats:
+            self.list_grid_gnn = nn.ModuleList(
+                [GridGNN(self.hidden_node_feats, self.out_grid_feats, self.grid_heads) for _ in range(self.n_layer)]
+            )
         self.n_target = n_target
-        self.output_layer = nn.Linear(self.hidden_node_feats, self.n_target)
+        self.output_layer_1 = nn.Linear(self.in_node_feats + self.hidden_node_feats, self.hidden_node_feats)
+        self.output_layer_2 = nn.Linear(self.hidden_node_feats, self.hidden_node_feats)
+        self.output_layer_3 = nn.Linear(self.hidden_node_feats, self.n_target)
         self.activation = activation
 
     def forward(self, in_node_feat: torch.Tensor, in_net_feat: torch.Tensor, in_pin_feat: torch.Tensor,
@@ -90,18 +94,31 @@ class HyperGNN2D(nn.Module):
         pin_feat = F.leaky_relu(self.pin_lin(in_pin_feat))
 
         for i in range(self.n_layer):
-            out_node_feat, out_net_feat = self.list_node_net_gnn[i].forward(node_net_graph,
-                                                                            node_feat, pin_feat, net_feat)
-            list_out_grid_feat = [self.list_grid_gnn[i].forward(list_grid_graph[j], node_feat)
-                                  for j in range(self.grid_channels)]
-            out_grid_feat = torch.cat(list_out_grid_feat, dim=-1)
-            out_grid_feat = torch.reshape(out_grid_feat,
-                                          [-1, self.out_grid_feats * self.grid_channels * self.grid_heads])
+            list_node_feat = []
+            list_net_feat = []
+            if self.out_grid_feats:
+                list_out_grid_feat = [self.list_grid_gnn[i].forward(list_grid_graph[j], node_feat)
+                                      for j in range(self.grid_channels)]
+                out_grid_feat = torch.cat(list_out_grid_feat, dim=-1)
+                out_grid_feat = torch.reshape(out_grid_feat,
+                                              [-1, self.out_grid_feats * self.grid_channels * self.grid_heads])
+                list_node_feat.append(out_grid_feat)
 
-            node_feat = torch.cat((out_node_feat, out_grid_feat), dim=-1)
-            net_feat = out_net_feat
+            if self.out_node_feats:
+                out_node_feat, out_net_feat = self.list_node_net_gnn[i].forward(node_net_graph,
+                                                                                node_feat, pin_feat, net_feat)
+                list_node_feat.append(out_node_feat)
+                list_net_feat.append(out_net_feat)
 
-        output_predictions = self.output_layer(node_feat)
+            node_feat = torch.tanh(torch.cat(list_node_feat, dim=-1))
+            if len(list_net_feat):
+                net_feat = torch.tanh(torch.cat(list_net_feat, dim=-1))
+
+        output_predictions = self.output_layer_3(torch.tanh(
+            self.output_layer_2(torch.tanh(
+                self.output_layer_1(torch.cat([in_node_feat, node_feat], dim=-1))
+            ))
+        ))
         if self.activation == 'sig':
             output_predictions = torch.sigmoid(output_predictions)
         elif self.activation == 'tanh':

@@ -47,36 +47,28 @@ def printout(arr1, arr2, prefix="", log_prefix=""):
 
 
 argparser = argparse.ArgumentParser("Training")
-argparser.add_argument('--name', type=str, default='hyper')
-argparser.add_argument('--basedatadir', type=str, default='data/')
+argparser.add_argument('--name', type=str, default='hyper-xgr')
 argparser.add_argument('--test', type=str, default='superblue19')
 argparser.add_argument('--epochs', type=int, default=100)
-argparser.add_argument('--architecture', type=str, default='200,160')
-argparser.add_argument('--degdim', type=int, default=0)
-argparser.add_argument('--batch_size_GCN', type=int, default=256)
-argparser.add_argument('--clusters_per_graph', type=int, default=100)
-argparser.add_argument('--clusters_per_batch', type=int, default=1)
-argparser.add_argument('--graph_type', type=str, default='SAGE')
-argparser.add_argument('--heads', type=str, default='1')
+
+argparser.add_argument('--layers', type=int, default=3)  # 3
+argparser.add_argument('--node_feats', type=int, default=32)  # 32
+argparser.add_argument('--net_feats', type=int, default=64)  # 64
+argparser.add_argument('--pin_feats', type=int, default=8)  # 8
+argparser.add_argument('--grid_feats', type=int, default=0)  # 4
+argparser.add_argument('--heads', type=int, default=2)  # 2
+
 argparser.add_argument('--device', type=str, default='cuda:0')
 argparser.add_argument('--hashcode', type=str, default='000000')
-argparser.add_argument('--logic_features', type=bool, default=True)
-argparser.add_argument('--normalized_labels', type=bool, default=False)
 argparser.add_argument('--idx', type=int, default=8)
 argparser.add_argument('--train_epoch', type=int, default=5)
-argparser.add_argument('--mintrainidx', type=int, default=19)
-argparser.add_argument('--maxtrainidx', type=int, default=20)
 argparser.add_argument('--itermax', type=int, default=2500)
 argparser.add_argument('--scalefac', type=float, default=7.0)
-argparser.add_argument('--outscalefac', type=float, default=7.5)
-argparser.add_argument('--edgecap', type=int, default=10)
 argparser.add_argument('--outtype', type=str, default='sig')
 argparser.add_argument('--binx', type=int, default=32)
 argparser.add_argument('--biny', type=int, default=40)
-argparser.add_argument('--xshape', type=int, default=321)
-argparser.add_argument('--yshape', type=int, default=518)
 
-argparser.add_argument('--graph_scale', type=int, default=50000)
+argparser.add_argument('--graph_scale', type=int, default=3000)
 args = argparser.parse_args()
 
 device = torch.device(args.device)
@@ -84,20 +76,20 @@ if not args.device == 'cpu':
     torch.cuda.set_device(device)
 
 config = {
-    'N_LAYER': 3,
-    'NODE_FEATS': 32,
-    'NET_FEATS': 64,
-    'GRID_FEATS': 4,
-    'GRID_HEADS': 2,
+    'N_LAYER': args.layers,
+    'NODE_FEATS': args.node_feats,
+    'NET_FEATS': args.net_feats,
+    'GRID_FEATS': args.grid_feats,
+    'GRID_HEADS': args.heads,
     'GRID_CHANNELS': 4,
-    'PIN_FEATS': 8,
+    'PIN_FEATS': args.pin_feats,
 }
 
 train_dataset_names = [
-    'superblue16_processed',
+    'superblue14_processed',
 ]
 test_dataset_names = [
-    'superblue19_processed',
+    'superblue16_processed',
 ]
 
 train_list_tuple_graph, test_list_tuple_graph = [], []

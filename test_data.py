@@ -60,15 +60,28 @@ def get_partition_list_random(g, p_size):
     return [nids[i::p_size] for i in range(p_size)]
 
 
-def node_pairs_among(nodes):
+def node_pairs_among(nodes, max_cap=-1):
     us = []
     vs = []
-    for u in nodes:
-        for v in nodes:
-            if u == v:
-                continue
-            us.append(u)
-            vs.append(v)
+    if max_cap == -1 or len(nodes) <= max_cap:
+        for u in nodes:
+            for v in nodes:
+                if u == v:
+                    continue
+                us.append(u)
+                vs.append(v)
+    else:
+        for u in nodes:
+            vs_ = np.random.permutation(nodes)
+            left = max_cap - 1
+            for v_ in vs_:
+                if left == 0:
+                    break
+                if u == v_:
+                    continue
+                us.append(u)
+                vs.append(v_)
+                left -= 1
     return us, vs
 
 
@@ -101,7 +114,6 @@ def process_data(dir_name: str, given_iter, index: int, hashcode: str,
     homo_graph.ndata.pop('wts')
     homo_graph.ndata.pop('wtmsg')
     homo_graph.ndata['feat'] = torch.cat([homo_graph.ndata['feat'], extra], dim=1)
-    print(homo_graph.ndata['feat'])
     homo_graph.ndata['label'] = torch.tensor(labels, dtype=torch.float32)
     # partition_list = get_partition_list(homo_graph, int(np.ceil(n_node / graph_scale)))
     partition_list = get_partition_list_random(homo_graph, int(np.ceil(n_node / graph_scale)))
@@ -130,8 +142,20 @@ def process_data(dir_name: str, given_iter, index: int, hashcode: str,
     list_hetero_graph = []
     for partition in partition_list:
         part_hetero_graph = dgl.node_subgraph(hetero_graph, nodes={'node': partition, 'net': hetero_graph.nodes('net')})
-        remove_net_ids = [net_id for net_id in part_hetero_graph.nodes('net')
-                          if part_hetero_graph.in_degrees(net_id, etype='pins') == 0]
+        # remove_net_ids = [net_id for net_id in part_hetero_graph.nodes('net')
+        #                   if part_hetero_graph.in_degrees(net_id, etype='pins') == 0]
+        # print(partition)
+        keep_net_ids = set()
+        for net_id, node_id in zip(*[ns.tolist() for ns in hetero_graph.edges(etype='pinned')]):
+            # print(net_id, node_id)
+            if node_id in partition:
+                keep_net_ids.add(net_id)
+        all_net_ids = set(part_hetero_graph.nodes('net').tolist())
+        remove_net_ids = all_net_ids - keep_net_ids
+        # print(all_net_ids)
+        # print(keep_net_ids)
+        # print(remove_net_ids)
+        # exit(123)
         part_hetero_graph.remove_nodes(remove_net_ids, ntype='net')
         list_hetero_graph.append(part_hetero_graph)
 
@@ -180,3 +204,5 @@ if __name__ == '__main__':
         pred = model.forward(hg.nodes['node'].data['hv'], hg.nodes['net'].data['hv'], hg.edges['pinned'].data['he'],
                              hg, ggs)
         print(pred)
+
+    # print(node_pairs_among(list(range(12)), max_cap=10))
