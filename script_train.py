@@ -86,10 +86,13 @@ config = {
 }
 
 train_dataset_names = [
+    'superblue7_processed',
+    'superblue9_processed',
     'superblue14_processed',
+    'superblue16_processed',
 ]
 test_dataset_names = [
-    'superblue16_processed',
+    'superblue19_processed',
 ]
 
 train_list_tuple_graph, test_list_tuple_graph = [], []
