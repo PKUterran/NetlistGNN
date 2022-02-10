@@ -115,7 +115,7 @@ def process_data(dir_name: str, given_iter, index: int, hashcode: str,
     homo_graph.ndata.pop('wtmsg')
     homo_graph.ndata['feat'] = torch.cat([homo_graph.ndata['feat'], extra], dim=1)
     homo_graph.ndata['label'] = torch.tensor(labels, dtype=torch.float32)
-    # partition_list = get_partition_list(homo_graph, int(np.ceil(n_node / graph_scale)))
+    # partition_list = get_partition_list_random(homo_graph, int(np.ceil(n_node / graph_scale)))
     partition_list = [[0, 1, 2, 3], [4, 5]]
     list_homo_graph = [dgl.node_subgraph(homo_graph, partition) for partition in partition_list]
 
