@@ -47,7 +47,7 @@ def printout(arr1, arr2, prefix="", log_prefix=""):
 
 
 argparser = argparse.ArgumentParser("Training")
-argparser.add_argument('--name', type=str, default='hyper-xgr')
+argparser.add_argument('--name', type=str, default='hyper')
 argparser.add_argument('--test', type=str, default='superblue19')
 argparser.add_argument('--epochs', type=int, default=100)
 
@@ -55,7 +55,7 @@ argparser.add_argument('--layers', type=int, default=3)  # 3
 argparser.add_argument('--node_feats', type=int, default=32)  # 32
 argparser.add_argument('--net_feats', type=int, default=64)  # 64
 argparser.add_argument('--pin_feats', type=int, default=8)  # 8
-argparser.add_argument('--grid_feats', type=int, default=0)  # 4
+argparser.add_argument('--grid_feats', type=int, default=4)  # 4
 argparser.add_argument('--heads', type=int, default=2)  # 2
 
 argparser.add_argument('--device', type=str, default='cuda:0')
