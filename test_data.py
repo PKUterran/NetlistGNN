@@ -116,7 +116,7 @@ def process_data(dir_name: str, given_iter, index: int, hashcode: str,
     homo_graph.ndata['feat'] = torch.cat([homo_graph.ndata['feat'], extra], dim=1)
     homo_graph.ndata['label'] = torch.tensor(labels, dtype=torch.float32)
     # partition_list = get_partition_list(homo_graph, int(np.ceil(n_node / graph_scale)))
-    partition_list = get_partition_list_random(homo_graph, int(np.ceil(n_node / graph_scale)))
+    partition_list = [[0, 1, 2, 3], [4, 5]]
     list_homo_graph = [dgl.node_subgraph(homo_graph, partition) for partition in partition_list]
 
     # hetero_graph
@@ -141,22 +141,21 @@ def process_data(dir_name: str, given_iter, index: int, hashcode: str,
 
     list_hetero_graph = []
     for partition in partition_list:
-        part_hetero_graph = dgl.node_subgraph(hetero_graph, nodes={'node': partition, 'net': hetero_graph.nodes('net')})
-        # remove_net_ids = [net_id for net_id in part_hetero_graph.nodes('net')
-        #                   if part_hetero_graph.in_degrees(net_id, etype='pins') == 0]
-        # print(partition)
         keep_net_ids = set()
         for net_id, node_id in zip(*[ns.tolist() for ns in hetero_graph.edges(etype='pinned')]):
-            # print(net_id, node_id)
             if node_id in partition:
                 keep_net_ids.add(net_id)
-        all_net_ids = set(part_hetero_graph.nodes('net').tolist())
-        remove_net_ids = all_net_ids - keep_net_ids
+        part_hetero_graph = dgl.node_subgraph(hetero_graph, nodes={'node': partition, 'net': list(keep_net_ids)})
+        # remove_net_ids = [net_id for net_id in part_hetero_graph.nodes('net')
+        #                   if part_hetero_graph.in_degrees(net_id, etype='pins') == 0]
+        # part_hetero_graph.remove_nodes(remove_net_ids, ntype='net')
+        # print(partition)
         # print(all_net_ids)
+        # print(partition)
         # print(keep_net_ids)
+        print(part_hetero_graph)
         # print(remove_net_ids)
         # exit(123)
-        part_hetero_graph.remove_nodes(remove_net_ids, ntype='net')
         list_hetero_graph.append(part_hetero_graph)
 
     # grid_graph
