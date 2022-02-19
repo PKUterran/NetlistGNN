@@ -47,41 +47,41 @@ def printout(arr1, arr2, prefix="", log_prefix=""):
 
 
 argparser = argparse.ArgumentParser("Training")
-argparser.add_argument('--name', type=str, default='GCN-pos')
-argparser.add_argument('--basedatadir', type=str, default='data/')
+argparser.add_argument('--name', type=str, default='GAT')
 argparser.add_argument('--test', type=str, default='superblue19')
 argparser.add_argument('--epochs', type=int, default=100)
-argparser.add_argument('--architecture', type=str, default='200,160')
+argparser.add_argument('--lr', type=int, default=1e-3)
+argparser.add_argument('--weight_decay', type=int, default=2e-5)
+argparser.add_argument('--lr_decay', type=int, default=0.98)
+
+argparser.add_argument('--graph_type', type=str, default='GAT')
+argparser.add_argument('--architecture', type=str, default='400,320')
 argparser.add_argument('--degdim', type=int, default=0)
-argparser.add_argument('--batch_size_GCN', type=int, default=256)
-argparser.add_argument('--clusters_per_graph', type=int, default=100)
-argparser.add_argument('--clusters_per_batch', type=int, default=1)
-argparser.add_argument('--graph_type', type=str, default='GCN')
 argparser.add_argument('--heads', type=str, default='1')
+
+argparser.add_argument('--seed', type=int, default=0)
 argparser.add_argument('--device', type=str, default='cuda:0')
 argparser.add_argument('--hashcode', type=str, default='000000')
-argparser.add_argument('--logic_features', type=bool, default=False)
-argparser.add_argument('--normalized_labels', type=bool, default=False)
+argparser.add_argument('--logic_features', type=bool, default=True)
 argparser.add_argument('--idx', type=int, default=8)
 argparser.add_argument('--train_epoch', type=int, default=5)
-argparser.add_argument('--mintrainidx', type=int, default=19)
-argparser.add_argument('--maxtrainidx', type=int, default=20)
 argparser.add_argument('--itermax', type=int, default=2500)
 argparser.add_argument('--scalefac', type=float, default=7.0)
-argparser.add_argument('--outscalefac', type=float, default=7.5)
-argparser.add_argument('--edgecap', type=int, default=10)
 argparser.add_argument('--outtype', type=str, default='sig')
 argparser.add_argument('--binx', type=int, default=32)
 argparser.add_argument('--biny', type=int, default=40)
-argparser.add_argument('--xshape', type=int, default=321)
-argparser.add_argument('--yshape', type=int, default=518)
 
-argparser.add_argument('--graph_scale', type=int, default=50000)
+argparser.add_argument('--graph_scale', type=int, default=10000)
 args = argparser.parse_args()
+
+seed = args.seed
+np.random.seed(seed)
+torch.manual_seed(seed)
 
 device = torch.device(args.device)
 if not args.device == 'cpu':
     torch.cuda.set_device(device)
+    torch.cuda.manual_seed(seed)
 
 if ',' in args.architecture:
     arch = list(map(int, args.architecture.split(',')))
@@ -99,10 +99,13 @@ arch.insert(0, 2 * nfeats + args.degdim)
 arch.append(1)
 
 train_dataset_names = [
+    # 'superblue7_processed',
+    'superblue9_processed',
     'superblue14_processed',
+    'superblue16_processed',
 ]
 test_dataset_names = [
-    'superblue16_processed',
+    'superblue19_processed',
 ]
 
 train_list_tuple_graph, test_list_tuple_graph = [], []
@@ -114,11 +117,6 @@ for dataset_name in train_dataset_names:
             list_tuple_graph = load_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
                                          graph_scale=args.graph_scale,
                                          bin_x=args.binx, bin_y=args.biny, force_save=False)
-            # for tg in list_tuple_graph:
-            #     print(tg[0])
-            #     print(tg[1])
-            #     print(tg[2][0])
-            #     break
             train_list_tuple_graph.extend(list_tuple_graph)
 # exit(123)
 for dataset_name in test_dataset_names:
@@ -150,8 +148,8 @@ for name, param in model.named_parameters():
 print(f'# of parameters: {n_param}')
 
 loss_f = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=5e-4)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=0.99)
+optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=args.lr_decay)
 
 LOG_DIR = f'log/{args.test}'
 if not os.path.isdir(LOG_DIR):

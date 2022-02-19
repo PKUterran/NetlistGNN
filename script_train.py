@@ -50,14 +50,19 @@ argparser = argparse.ArgumentParser("Training")
 argparser.add_argument('--name', type=str, default='hyper')
 argparser.add_argument('--test', type=str, default='superblue19')
 argparser.add_argument('--epochs', type=int, default=100)
+argparser.add_argument('--batch', type=int, default=1)
+argparser.add_argument('--lr', type=float, default=1e-3)
+argparser.add_argument('--weight_decay', type=float, default=2e-5)
+argparser.add_argument('--lr_decay', type=float, default=0.98)
 
-argparser.add_argument('--layers', type=int, default=3)  # 3
-argparser.add_argument('--node_feats', type=int, default=32)  # 32
-argparser.add_argument('--net_feats', type=int, default=64)  # 64
-argparser.add_argument('--pin_feats', type=int, default=8)  # 8
-argparser.add_argument('--grid_feats', type=int, default=4)  # 4
+argparser.add_argument('--layers', type=int, default=2)  # 2
+argparser.add_argument('--node_feats', type=int, default=64)  # 128
+argparser.add_argument('--net_feats', type=int, default=128)  # 128
+argparser.add_argument('--pin_feats', type=int, default=4)  # 4
+argparser.add_argument('--grid_feats', type=int, default=16)  # 32
 argparser.add_argument('--heads', type=int, default=2)  # 2
 
+argparser.add_argument('--seed', type=int, default=0)
 argparser.add_argument('--device', type=str, default='cuda:0')
 argparser.add_argument('--hashcode', type=str, default='000000')
 argparser.add_argument('--idx', type=int, default=8)
@@ -68,12 +73,17 @@ argparser.add_argument('--outtype', type=str, default='sig')
 argparser.add_argument('--binx', type=int, default=32)
 argparser.add_argument('--biny', type=int, default=40)
 
-argparser.add_argument('--graph_scale', type=int, default=3000)
+argparser.add_argument('--graph_scale', type=int, default=10000)
 args = argparser.parse_args()
+
+seed = args.seed
+np.random.seed(seed)
+torch.manual_seed(seed)
 
 device = torch.device(args.device)
 if not args.device == 'cpu':
     torch.cuda.set_device(device)
+    torch.cuda.manual_seed(seed)
 
 config = {
     'N_LAYER': args.layers,
@@ -86,7 +96,7 @@ config = {
 }
 
 train_dataset_names = [
-    'superblue7_processed',
+    # 'superblue7_processed',
     'superblue9_processed',
     'superblue14_processed',
     'superblue16_processed',
@@ -136,8 +146,8 @@ for name, param in model.named_parameters():
 print(f'# of parameters: {n_param}')
 
 loss_f = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=5e-4)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=0.99)
+optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=args.lr_decay)
 
 LOG_DIR = f'log/{args.test}'
 if not os.path.isdir(LOG_DIR):
@@ -157,6 +167,8 @@ for epoch in range(0, args.epochs + 1):
         model.train()
         for _ in range(args.train_epoch):
             t1 = time()
+            losses = []
+            n_tuples = len(train_list_tuple_graph)
             for j, (homo_graph, hetero_graph, grid_graphs) in enumerate(train_list_tuple_graph):
                 homo_graph, hetero_graph, grid_graphs = to_device(homo_graph, hetero_graph, grid_graphs)
                 optimizer.zero_grad()
@@ -169,8 +181,11 @@ for epoch in range(0, args.epochs + 1):
                 ) * args.scalefac
                 batch_labels = homo_graph.ndata['label']
                 loss = loss_f(pred.view(-1), batch_labels.float())
-                loss.backward()
-                optimizer.step()
+                losses.append(loss)
+                if len(losses) >= args.batch or j == n_tuples - 1:
+                    sum(losses).backward()
+                    optimizer.step()
+                    losses.clear()
             scheduler.step()
             print(f"\tTraining time per epoch: {time() - t1}")
     logs[-1].update({'train_time': time() - t0})

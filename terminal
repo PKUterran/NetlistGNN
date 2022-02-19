@@ -1,0 +1,6 @@
+python script_train.py --name hyper
+python script_train.py --name hyper-xgr --grid_feats 0
+python script_train.py --name hyper-xbi --node_feats 0
+python script_train_gnn.py --name GAT --graph_type GAT --logic_features True
+python script_train_gnn.py --name GCN --graph_type GCN --logic_features True
+python script_train_gnn.py --name SAGE --graph_type SAGE --logic_features True

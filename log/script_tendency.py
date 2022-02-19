@@ -50,9 +50,9 @@ PLT_TUPLES = [
     ('SAGE', 'superblue19/SAGE.json'),
     ('GCN', 'superblue19/GCN.json'),
     ('GAT', 'superblue19/GAT.json'),
-    ('SAGE-pos', 'superblue19/SAGE-pos.json'),
-    ('GCN-pos', 'superblue19/GCN-pos.json'),
-    ('GAT-pos', 'superblue19/GAT-pos.json'),
+    # ('SAGE-pos', 'superblue19/SAGE-pos.json'),
+    # ('GCN-pos', 'superblue19/GCN-pos.json'),
+    # ('GAT-pos', 'superblue19/GAT-pos.json'),
 ]
 
 if __name__ == '__main__':
