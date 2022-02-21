@@ -1,7 +1,6 @@
 import numpy as np
 import os
 import sys
-from scipy.stats import pearsonr
 from scipy.stats import pearsonr, spearmanr, kendalltau
 
 

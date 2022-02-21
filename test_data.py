@@ -6,6 +6,7 @@ import dgl.function as fn
 from dgl.transform import add_self_loop, metis_partition
 
 from net.HyperGNN2D import HyperGNN2D
+from data.DIT import dump_data as dump_data_image
 
 DATA_DIR = 'data/test'
 
@@ -197,12 +198,14 @@ DEFAULT_CONFIG = {
 
 if __name__ == '__main__':
     # dump_data()
-    _, list_hg, list_ggs = process_data(DATA_DIR, 900, 8, '000000')
-
-    model = HyperGNN2D(4, 1, 3, 1, DEFAULT_CONFIG)
-    for i, (hg, ggs) in enumerate(zip(list_hg, list_ggs)):
-        pred = model.forward(hg.nodes['node'].data['hv'], hg.nodes['net'].data['hv'], hg.edges['pinned'].data['he'],
-                             hg, ggs)
-        print(pred)
+    # _, list_hg, list_ggs = process_data(DATA_DIR, 900, 8, '000000')
+    #
+    # model = HyperGNN2D(4, 1, 3, 1, DEFAULT_CONFIG)
+    # for i, (hg, ggs) in enumerate(zip(list_hg, list_ggs)):
+    #     pred = model.forward(hg.nodes['node'].data['hv'], hg.nodes['net'].data['hv'], hg.edges['pinned'].data['he'],
+    #                          hg, ggs)
+    #     print(pred)
 
     # print(node_pairs_among(list(range(12)), max_cap=10))
+    dump_data_image('data/superblue16_processed', 'data/superblue16', 700)
+    # dump_data_image('data/superblue19_processed', 'data/superblue19', 900)

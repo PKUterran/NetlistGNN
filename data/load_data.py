@@ -66,7 +66,7 @@ def node_pairs_among(nodes, max_cap=-1):
 
 
 def load_data(dir_name: str, given_iter, index: int, hashcode: str,
-              graph_scale: int = 1000, bin_x: float = 40, bin_y: float = 32, force_save=False, use_tqdm=True
+              graph_scale: int = 1000, bin_x: float = 32, bin_y: float = 40, force_save=False, use_tqdm=True
               ) -> List[Tuple[dgl.DGLGraph, dgl.DGLHeteroGraph, List[dgl.DGLGraph]]]:
     file_path = f'{dir_name}/graphs_{given_iter}.pickle'
     if os.path.exists(file_path) and not force_save:
