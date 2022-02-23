@@ -2,6 +2,7 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
+from torchvision import datasets, transforms
 
 from PIL import Image
 from typing import Tuple, List
@@ -110,13 +111,22 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
 
 
 def collect_data(dirs: List[str], storage: str, part_x=64, part_y=64, clear_files=False):
+    pres = [
+        INPUT_IMAGE,
+        OUTPUT_IMAGE,
+        # EVAL_IMAGE,
+    ]
     if not os.path.isdir(storage):
         os.mkdir(storage)
-    if clear_files:
-        for file in os.listdir(storage):
-            os.remove(f'{storage}/{file}')
+    for pre in pres:
+        path = f'{storage}/{pre}'
+        if clear_files:
+            os.removedirs(path)
+        if not os.path.isdir(path):
+            os.mkdir(path)
+            os.mkdir(f'{path}/img')
 
-    for pre in [INPUT_IMAGE, OUTPUT_IMAGE, EVAL_IMAGE]:
+    for pre in pres:
         cnt = 0
         for dir_name in dirs:
             im = Image.open(f'{dir_name}/{pre}.png')
@@ -125,9 +135,15 @@ def collect_data(dirs: List[str], storage: str, part_x=64, part_y=64, clear_file
             for x in range(max_x):
                 for y in range(max_y):
                     im_xy = im.crop((x * part_x, y * part_y, (x + 1) * part_x, (y + 1) * part_y))
-                    im_xy.save(f'{storage}/{pre}_{cnt}.png')
+                    im_xy.save(f'{storage}/{pre}/img/{cnt}.png')
                     cnt += 1
 
 
-def load_data(dir_name: str, use_tqdm=True):
-    pass
+def load_data(storage: str) -> Tuple[datasets.ImageFolder, datasets.ImageFolder]:
+    data_transform = transforms.Compose([
+        # transforms.Resize((300, 300)),
+        transforms.ToTensor(),
+    ])
+    input_images = datasets.ImageFolder(f'{storage}/{INPUT_IMAGE}', transform=data_transform)
+    output_images = datasets.ImageFolder(f'{storage}/{OUTPUT_IMAGE}', transform=data_transform)
+    return input_images, output_images

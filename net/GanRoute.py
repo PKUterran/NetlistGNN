@@ -7,47 +7,26 @@ from torchvision.utils import save_image
 from torchvision.datasets import MNIST
 import os
 
-if not os.path.exists('./dc_img'):
-    os.mkdir('./dc_img')
-
-
-def to_img(x):  # 将vector转换成矩阵
-    x = 0.5 * (x + 1)
-    x = x.clamp(0, 1)
-    x = x.view(x.size(0), 1, 28, 28)
-    return x
-
-
-num_epochs = 100
-batch_size = 128
-learning_rate = 1e-3
-
-img_transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-])
-
-dataset = MNIST('./data', transform=img_transform)
-dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
 
 class ImageAutoEncoder(nn.Module):
     def __init__(self):
         super(ImageAutoEncoder, self).__init__()
         self.encoder = nn.Sequential(
-            nn.Conv2d(1, 16, 3, stride=3, padding=1),  # b, 16, 10, 10
+            nn.Conv2d(3, 16, 3, stride=3, padding=1),  # b, 16, 22, 22
             nn.ReLU(True),
-            nn.MaxPool2d(2, stride=2),  # b, 16, 5, 5
-            nn.Conv2d(16, 8, 3, stride=2, padding=1),  # b, 8, 3, 3
+            nn.MaxPool2d(2, stride=2),  # b, 16, 11, 11
+            nn.Conv2d(16, 8, 3, stride=2),  # b, 8, 5, 5
             nn.ReLU(True),
-            nn.MaxPool2d(2, stride=1)  # b, 8, 2, 2
+            nn.MaxPool2d(2, stride=1)  # b, 8, 4, 4
         )
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(8, 16, 3, stride=2),  # b, 16, 5, 5
+            nn.ConvTranspose2d(8, 16, 4, stride=3, padding=1),  # b, 16, 11, 11
+            nn.BatchNorm2d(16),
             nn.ReLU(True),
-            nn.ConvTranspose2d(16, 8, 5, stride=3, padding=1),  # b, 8, 15, 15
+            nn.ConvTranspose2d(16, 8, 4, stride=3, padding=1),  # b, 8, 32, 32
+            nn.BatchNorm2d(8),
             nn.ReLU(True),
-            nn.ConvTranspose2d(8, 1, 2, stride=2, padding=1),  # b, 1, 28, 28
+            nn.ConvTranspose2d(8, 3, 2, stride=2),  # b, 3, 64, 64
             nn.Tanh()  # 将输出值映射到-1~1之间
         )
 
@@ -57,29 +36,31 @@ class ImageAutoEncoder(nn.Module):
         return x
 
 
-model = autoencoder().cuda()
-criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate,
-                             weight_decay=1e-5)
+class Discriminator(nn.Module):
+    def __init__(self):
+        super(Discriminator, self).__init__()
+        ndf = 64
+        self.encoder = nn.Sequential(
+            # input is (nc) x 64 x 64
+            nn.Conv2d(3, ndf, 4, 2, 1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf) x 32 x 32
+            nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf * 2),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*2) x 16 x 16
+            nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf * 4),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*4) x 8 x 8
+            nn.Conv2d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf * 8),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*8) x 4 x 4
+            nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=False),
+            nn.Sigmoid()
+        )
 
-for epoch in range(num_epochs):
-    for data in dataloader:
-        img, _ = data  # img是一个b*channel*width*height的矩阵
-        img = Variable(img).cuda()
-        # ===================forward=====================
-        output = model(img)
-        a = img.data.cpu().numpy()
-        b = output.data.cpu().numpy()
-        loss = criterion(output, img)
-        # ===================backward====================
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-    # ===================log========================
-    print('epoch [{}/{}], loss:{:.4f}'
-          .format(epoch+1, num_epochs, loss.data[0]))
-    if epoch % 10 == 0:
-        pic = to_img(output.cpu().data)  # 将decoder的输出保存成图像
-        save_image(pic, './dc_img/image_{}.png'.format(epoch))
-
-torch.save(model.state_dict(), './conv_autoencoder.pth')
+    def forward(self, x):
+        x = self.encoder(x)
+        return x

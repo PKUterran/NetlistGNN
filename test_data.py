@@ -8,6 +8,7 @@ from dgl.transform import add_self_loop, metis_partition
 from net.HyperGNN2D import HyperGNN2D
 from data.DIT import dump_data as dump_data_image
 from data.DIT import collect_data as collect_data_image
+from data.DIT import load_data as load_data_image
 
 DATA_DIR = 'data/test'
 
@@ -208,7 +209,12 @@ if __name__ == '__main__':
     #     print(pred)
 
     # print(node_pairs_among(list(range(12)), max_cap=10))
-    dump_data_image('data/superblue16_processed', 'data/superblue16', 700, 8, '000000', force_save=False)
-    dump_data_image('data/superblue19_processed', 'data/superblue19', 900, 8, '000000', force_save=False)
-    collect_data_image(['data/superblue16_processed'], 'data/train_images', clear_files=True)
-    collect_data_image(['data/superblue19_processed'], 'data/test_images', clear_files=True)
+    # dump_data_image('data/superblue16_processed', 'data/superblue16', 700, 8, '000000', force_save=False)
+    # dump_data_image('data/superblue19_processed', 'data/superblue19', 900, 8, '000000', force_save=False)
+    # collect_data_image(['data/superblue16_processed'], 'data/train_images', clear_files=True)
+    # collect_data_image(['data/superblue19_processed'], 'data/test_images', clear_files=True)
+    input_images, output_images = load_data_image('data/train_images')
+    # print(input_images)
+    print(input_images[0][0])
+    print(torch.max(input_images[0][0]))
+    # print(output_images)
