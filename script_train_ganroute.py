@@ -11,6 +11,7 @@ from scipy.stats import pearsonr, spearmanr, kendalltau
 
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader
 
 from data.DIT import load_data
 from net.GanRoute import ImageAutoEncoder, Discriminator
@@ -79,8 +80,10 @@ if not args.device == 'cpu':
     torch.cuda.set_device(device)
     torch.cuda.manual_seed(seed)
 
-train_input_images, train_output_images = load_data('data/train_images')
-test_input_images, test_output_images = load_data('data/test_images')
+_, train_output_images = load_data('data/train_images')
+_, test_output_images = load_data('data/test_images')
+train_loader = DataLoader(train_output_images, batch_size=8, shuffle=True)
+test_loader = DataLoader(test_output_images, batch_size=8)
 
 print('##### MODEL #####')
 print('Generator:')
@@ -99,9 +102,11 @@ for name, param in discriminator.named_parameters():
     n_param += reduce(lambda x, y: x * y, param.shape)
 print(f'# of parameters: {n_param}')
 
-loss_f = nn.MSELoss()
+loss_f = nn.BCELoss()
 optimizer_gen = torch.optim.Adam(generator.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 optimizer_dis = torch.optim.Adam(generator.parameters(), lr=args.lr, weight_decay=args.weight_decay_dis)
+real_label = 1.
+fake_label = 0.
 
 LOG_DIR = f'log/{args.test}'
 if not os.path.isdir(LOG_DIR):
@@ -110,63 +115,64 @@ if not os.path.isdir(LOG_DIR):
 for epoch in range(0, args.epochs + 1):
     print(f'##### EPOCH {epoch} #####')
     logs.append({'epoch': epoch})
-    t0 = time()
-    if epoch:
-        model.train()
-        for _ in range(args.train_epoch):
-            t1 = time()
-            losses = []
-            n_tuples = len(train_list_tuple_graph)
-            for j, (homo_graph, hetero_graph, grid_graphs) in enumerate(train_list_tuple_graph):
-                homo_graph, hetero_graph, grid_graphs = to_device(homo_graph, hetero_graph, grid_graphs)
-                optimizer.zero_grad()
-                pred = model.forward(
-                    in_node_feat=hetero_graph.nodes['node'].data['hv'],
-                    in_net_feat=hetero_graph.nodes['net'].data['hv'],
-                    in_pin_feat=hetero_graph.edges['pinned'].data['he'],
-                    node_net_graph=hetero_graph,
-                    list_grid_graph=grid_graphs,
-                ) * args.scalefac
-                batch_labels = homo_graph.ndata['label']
-                loss = loss_f(pred.view(-1), batch_labels.float())
-                losses.append(loss)
-                if len(losses) >= args.batch or j == n_tuples - 1:
-                    sum(losses).backward()
-                    optimizer.step()
-                    losses.clear()
-            print(f"\tTraining time per epoch: {time() - t1}")
-    logs[-1].update({'train_time': time() - t0})
 
-    t2 = time()
-    model.eval()
+    def train(data_loader: DataLoader):
+        for i, (batch_output_image, _) in enumerate(data_loader):
+            discriminator.zero_grad()
+            batch_output_image = batch_output_image.to(device)
+            batch_input_image = batch_output_image.clone()
+            batch_input_image[:, 0, :, :] = 0
 
-    def train_gen():
-        generator.train()
-        discriminator.eval()
-        optimizer_gen.zero_grad()
+            ############################
+            # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
+            ###########################
+            # Train with all-real batch
+            b_size = batch_output_image.shape[0]
+            label = torch.full((b_size,), real_label, dtype=torch.float, device=device)
+            pred = discriminator(batch_output_image).view(-1)
+            err_dis_real = loss_f(pred, label)
+            err_dis_real.backward()
+            dis_x = pred.mean().item()
 
-    def train_dis():
-        generator.eval()
-        discriminator.train()
-        optimizer_dis.zero_grad()
+            # Train with all-fake batch
+            batch_pred_image = generator(batch_input_image)
+            label.fill_(fake_label)
+            pred = discriminator(batch_pred_image.detach()).view(-1)
+            err_dis_fake = loss_f(pred, label)
+            err_dis_fake.backward()
+            dis_gen_z1 = pred.mean().item()
+            err_dis = err_dis_real + err_dis_fake
+            optimizer_dis.step()
 
-    def evaluate(ltg, set_name, n_node):
+            ############################
+            # (2) Update G network: maximize log(D(G(z)))
+            ###########################
+            generator.zero_grad()
+            label.fill_(real_label)
+            output = discriminator(batch_pred_image).view(-1)
+            err_gen = loss_f(output, label)
+            err_gen.backward()
+            dis_gen_z2 = output.mean().item()
+            optimizer_gen.step()
+
+            if i % 12 == 0:
+                print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
+                      % (epoch, args.epochs, i, len(data_loader),
+                         err_dis.item(), err_gen.item(), dis_x, dis_gen_z1, dis_gen_z2))
+
+    def evaluate(data_loader: DataLoader, set_name, n_node):
         print(f'\tEvaluate {set_name}:')
         outputdata = np.zeros((n_node, 4))
         p = 0
         with torch.no_grad():
-            for z, (hmg, htg, ggs) in enumerate(ltg):
-                hmg, htg, ggs = to_device(hmg, htg, ggs)
-                prd = model.forward(
-                    in_node_feat=htg.nodes['node'].data['hv'],
-                    in_net_feat=htg.nodes['net'].data['hv'],
-                    in_pin_feat=htg.edges['pinned'].data['he'],
-                    node_net_graph=htg,
-                    list_grid_graph=ggs,
-                ) * args.scalefac
-                output_labels = hmg.ndata['label']
+            for i, (batch_output_image, _) in enumerate(data_loader):
+                batch_output_image = batch_output_image.to(device)
+                batch_input_image = batch_output_image.clone()
+                batch_input_image[:, 0, :, :] = 0
+                batch_pred_image = generator(batch_input_image)
+                output_labels = batch_output_image[:, 0, :, :]
                 output_pos = (hmg.ndata['pos'].cpu().data.numpy())
-                output_predictions = prd
+                output_predictions = batch_pred_image[:, 0, :, :]
                 tgt = output_labels.cpu().data.numpy().flatten()
                 prd = output_predictions.cpu().data.numpy().flatten()
                 ln = len(tgt)
@@ -176,8 +182,14 @@ for epoch in range(0, args.epochs + 1):
         printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}_node_level_')
 
 
-    evaluate(train_list_tuple_graph, 'train', n_train_node)
-    evaluate(test_list_tuple_graph, 'test', n_test_node)
+    t0 = time()
+    if epoch:
+        train(train_loader)
+    logs[-1].update({'train_time': time() - t0})
+
+    t2 = time()
+    evaluate(train_loader, 'train', n_train_node)
+    evaluate(test_loader, 'test', n_test_node)
     print("\tinference time", time() - t2)
     logs[-1].update({'eval_time': time() - t2})
     with open(f'{LOG_DIR}/{args.name}.json', 'w+') as fp:
