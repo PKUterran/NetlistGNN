@@ -18,6 +18,7 @@ from net.GanRoute import ImageAutoEncoder, Discriminator
 
 import warnings
 
+# torch.autograd.set_detect_anomaly(True)
 warnings.filterwarnings("ignore")
 
 logs: List[Dict[str, Any]] = []
@@ -48,11 +49,11 @@ def printout(arr1, arr2, prefix="", log_prefix=""):
 
 
 argparser = argparse.ArgumentParser("Training")
-argparser.add_argument('--name', type=str, default='hyper')
+argparser.add_argument('--name', type=str, default='GanRoute')
 argparser.add_argument('--test', type=str, default='superblue19')
-argparser.add_argument('--epochs', type=int, default=100)
-argparser.add_argument('--batch', type=int, default=1)
-argparser.add_argument('--lr', type=float, default=1e-3)
+argparser.add_argument('--epochs', type=int, default=2000)
+argparser.add_argument('--batch', type=int, default=128)
+argparser.add_argument('--lr', type=float, default=2e-4)
 argparser.add_argument('--weight_decay', type=float, default=1e-5)
 argparser.add_argument('--weight_decay_dis', type=float, default=5e-4)
 argparser.add_argument('--lr_decay', type=float, default=0.98)
@@ -82,8 +83,10 @@ if not args.device == 'cpu':
 
 _, train_output_images = load_data('data/train_images')
 _, test_output_images = load_data('data/test_images')
-train_loader = DataLoader(train_output_images, batch_size=8, shuffle=True)
-test_loader = DataLoader(test_output_images, batch_size=8)
+n_train_sample = len(train_output_images)
+n_test_sample = len(test_output_images)
+train_loader = DataLoader(train_output_images, batch_size=args.batch, shuffle=True)
+test_loader = DataLoader(test_output_images, batch_size=args.batch)
 
 print('##### MODEL #####')
 print('Generator:')
@@ -103,8 +106,8 @@ for name, param in discriminator.named_parameters():
 print(f'# of parameters: {n_param}')
 
 loss_f = nn.BCELoss()
-optimizer_gen = torch.optim.Adam(generator.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-optimizer_dis = torch.optim.Adam(generator.parameters(), lr=args.lr, weight_decay=args.weight_decay_dis)
+optimizer_gen = torch.optim.Adam(generator.parameters(), lr=args.lr, betas=(0.5, 0.999))
+optimizer_dis = torch.optim.Adam(discriminator.parameters(), lr=args.lr, betas=(0.5, 0.999))
 real_label = 1.
 fake_label = 0.
 
@@ -118,7 +121,6 @@ for epoch in range(0, args.epochs + 1):
 
     def train(data_loader: DataLoader):
         for i, (batch_output_image, _) in enumerate(data_loader):
-            discriminator.zero_grad()
             batch_output_image = batch_output_image.to(device)
             batch_input_image = batch_output_image.clone()
             batch_input_image[:, 0, :, :] = 0
@@ -127,6 +129,10 @@ for epoch in range(0, args.epochs + 1):
             # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
             ###########################
             # Train with all-real batch
+            # discriminator.train()
+            # generator.eval()
+            discriminator.zero_grad()
+            # optimizer_dis.zero_grad()
             b_size = batch_output_image.shape[0]
             label = torch.full((b_size,), real_label, dtype=torch.float, device=device)
             pred = discriminator(batch_output_image).view(-1)
@@ -147,7 +153,10 @@ for epoch in range(0, args.epochs + 1):
             ############################
             # (2) Update G network: maximize log(D(G(z)))
             ###########################
+            # discriminator.eval()
+            # generator.train()
             generator.zero_grad()
+            # optimizer_gen.zero_grad()
             label.fill_(real_label)
             output = discriminator(batch_pred_image).view(-1)
             err_gen = loss_f(output, label)
@@ -155,14 +164,14 @@ for epoch in range(0, args.epochs + 1):
             dis_gen_z2 = output.mean().item()
             optimizer_gen.step()
 
-            if i % 12 == 0:
-                print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
+            if i % 1 == 0:
+                print('\t[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
                       % (epoch, args.epochs, i, len(data_loader),
                          err_dis.item(), err_gen.item(), dis_x, dis_gen_z1, dis_gen_z2))
 
-    def evaluate(data_loader: DataLoader, set_name, n_node):
+    def evaluate(data_loader: DataLoader, set_name, n_sample):
         print(f'\tEvaluate {set_name}:')
-        outputdata = np.zeros((n_node, 4))
+        output_data = np.zeros((n_sample * 32 * 32, 2))
         p = 0
         with torch.no_grad():
             for i, (batch_output_image, _) in enumerate(data_loader):
@@ -170,16 +179,15 @@ for epoch in range(0, args.epochs + 1):
                 batch_input_image = batch_output_image.clone()
                 batch_input_image[:, 0, :, :] = 0
                 batch_pred_image = generator(batch_input_image)
-                output_labels = batch_output_image[:, 0, :, :]
-                output_pos = (hmg.ndata['pos'].cpu().data.numpy())
-                output_predictions = batch_pred_image[:, 0, :, :]
+                output_labels = batch_output_image[:, 0, ::2, ::2]
+                output_predictions = batch_pred_image[:, 0, ::2, ::2]
                 tgt = output_labels.cpu().data.numpy().flatten()
                 prd = output_predictions.cpu().data.numpy().flatten()
                 ln = len(tgt)
-                outputdata[p:p + ln, 0], outputdata[p:p + ln, 1], outputdata[p:p + ln, 2:4] = tgt, prd, output_pos
+                output_data[p:p + ln, 0], output_data[p:p + ln, 1] = tgt, prd
                 p += ln
-        outputdata = outputdata[:p, :]
-        printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}_node_level_')
+        output_data = output_data[:p, :]
+        printout(output_data[:, 0], output_data[:, 1], "\t\tGRID_NO_INDEX: ", f'{set_name}_grid_no_index_')
 
 
     t0 = time()
@@ -188,8 +196,8 @@ for epoch in range(0, args.epochs + 1):
     logs[-1].update({'train_time': time() - t0})
 
     t2 = time()
-    evaluate(train_loader, 'train', n_train_node)
-    evaluate(test_loader, 'test', n_test_node)
+    evaluate(train_loader, 'train', n_train_sample)
+    evaluate(test_loader, 'test', n_test_sample)
     print("\tinference time", time() - t2)
     logs[-1].update({'eval_time': time() - t2})
     with open(f'{LOG_DIR}/{args.name}.json', 'w+') as fp:

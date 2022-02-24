@@ -1,4 +1,5 @@
 import os
+import shutil
 import numpy as np
 import torch
 import torch.nn as nn
@@ -120,8 +121,8 @@ def collect_data(dirs: List[str], storage: str, part_x=64, part_y=64, clear_file
         os.mkdir(storage)
     for pre in pres:
         path = f'{storage}/{pre}'
-        if clear_files:
-            os.removedirs(path)
+        if os.path.isdir(path) and clear_files:
+            shutil.rmtree(path)
         if not os.path.isdir(path):
             os.mkdir(path)
             os.mkdir(f'{path}/img')
