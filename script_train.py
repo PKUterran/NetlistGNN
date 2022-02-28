@@ -46,6 +46,42 @@ def printout(arr1, arr2, prefix="", log_prefix=""):
     })
 
 
+def rademacher(intensity, numindices):
+    arr = np.random.randint(low=0, high=2, size=numindices)
+    return intensity * (2 * arr - 1)
+
+
+def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name=''):
+    nodetarg, nodepred, posx, posy = [posandpred[:, i] for i in range(0, posandpred.shape[1])]
+    cmap_tgt = np.zeros((xgridshape, ygridshape))
+    cmap_prd, supp = np.zeros_like(cmap_tgt), np.zeros_like(cmap_tgt)
+    wmap = 1e-6 * np.ones_like(cmap_tgt)
+    indices = []
+    for i in range(0, posandpred.shape[0]):
+        key1, key2 = int(np.rint(posx[i] / binx)), int(np.rint(posy[i] / biny))
+        wmap[key1][key2] += 1
+        indices += [key2 + key1 * ygridshape]
+        cmap_prd[key1][key2] += nodepred[i]
+        cmap_tgt[key1][key2] += nodetarg[i]
+    supp = np.clip(wmap, 0, 1)
+    indices = list(set(indices))
+    if 0 in indices:
+        indices.remove(0)
+    cmap_tgt = np.divide(cmap_tgt, wmap)
+    cmap_prd = np.divide(cmap_prd, wmap)
+    cmap_prd[0, 0] = 0
+    cmap_tgt[0, 0] = 0
+    wmap[0, 0] = 1e-6
+    nctu, pred = cmap_tgt.flatten(), cmap_prd.flatten()
+    getmask = np.zeros_like(nctu)
+    getmask[indices] = 1
+    nctu, pred = np.multiply(nctu, getmask), np.multiply(pred, getmask)
+    printout(nctu[indices] + rademacher(1e-6, len(indices)), pred[indices] + rademacher(1e-6, len(indices)),
+             "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
+    printout(nctu, pred, "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
+    return
+
+
 argparser = argparse.ArgumentParser("Training")
 argparser.add_argument('--name', type=str, default='hyper')
 argparser.add_argument('--test', type=str, default='superblue19')
@@ -101,9 +137,9 @@ train_dataset_names = [
     'superblue14_processed',
     'superblue16_processed',
 ]
-test_dataset_names = [
-    'superblue19_processed',
-]
+# validate_dataset_name = 'superblue18_processed'
+
+test_dataset_name = 'superblue19_processed'
 
 train_list_tuple_graph, test_list_tuple_graph = [], []
 
@@ -116,7 +152,7 @@ for dataset_name in train_dataset_names:
                                          bin_x=args.binx, bin_y=args.biny, force_save=False)
             train_list_tuple_graph.extend(list_tuple_graph)
 
-for dataset_name in test_dataset_names:
+for dataset_name in [test_dataset_name]:
     for i in range(0, args.itermax):
         if os.path.isfile(f'data/{dataset_name}/iter_{i}_node_label_full_{args.hashcode}_.npy'):
             print(f'Loading {dataset_name}:')
@@ -194,7 +230,7 @@ for epoch in range(0, args.epochs + 1):
     model.eval()
 
 
-    def evaluate(ltg, set_name, n_node):
+    def evaluate(ltg, set_name, n_node, single_net=False):
         print(f'\tEvaluate {set_name}:')
         outputdata = np.zeros((n_node, 4))
         p = 0
@@ -217,11 +253,16 @@ for epoch in range(0, args.epochs + 1):
                 outputdata[p:p + ln, 0], outputdata[p:p + ln, 1], outputdata[p:p + ln, 2:4] = tgt, prd, output_pos
                 p += ln
         outputdata = outputdata[:p, :]
-        printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}_node_level_')
+        if single_net:
+            get_grid_level_corr(outputdata, args.binx, args.biny,
+                                int(np.rint(np.max(outputdata[:, 2]) / args.binx)) + 1,
+                                int(np.rint(np.max(outputdata[:, 3]) / args.biny)) + 1,
+                                set_name=set_name)
+        printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
 
 
-    evaluate(train_list_tuple_graph, 'train', n_train_node)
-    evaluate(test_list_tuple_graph, 'test', n_test_node)
+    evaluate(train_list_tuple_graph, 'train_', n_train_node)
+    evaluate(test_list_tuple_graph, 'test_', n_test_node, single_net=True)
     print("\tinference time", time() - t2)
     logs[-1].update({'eval_time': time() - t2})
     with open(f'{LOG_DIR}/{args.name}.json', 'w+') as fp:

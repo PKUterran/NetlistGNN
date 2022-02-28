@@ -11,6 +11,7 @@ from scipy.stats import pearsonr, spearmanr, kendalltau
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from data.DIT import load_data
@@ -54,9 +55,8 @@ argparser.add_argument('--test', type=str, default='superblue19')
 argparser.add_argument('--epochs', type=int, default=2000)
 argparser.add_argument('--batch', type=int, default=128)
 argparser.add_argument('--lr', type=float, default=2e-4)
-argparser.add_argument('--weight_decay', type=float, default=1e-5)
-argparser.add_argument('--weight_decay_dis', type=float, default=5e-4)
-argparser.add_argument('--lr_decay', type=float, default=0.98)
+argparser.add_argument('--gan_lambda', type=float, default=0)
+argparser.add_argument('--l1_lambda', type=float, default=10)
 
 argparser.add_argument('--seed', type=int, default=0)
 argparser.add_argument('--device', type=str, default='cuda:0')
@@ -159,17 +159,19 @@ for epoch in range(0, args.epochs + 1):
             # optimizer_gen.zero_grad()
             label.fill_(real_label)
             output = discriminator(batch_pred_image).view(-1)
-            err_gen = loss_f(output, label)
+            err_gen_1 = loss_f(output, label)
+            err_gen_2 = F.l1_loss(batch_pred_image, batch_output_image)
+            err_gen = err_gen_1 * args.gan_lambda + err_gen_2 * args.l1_lambda
             err_gen.backward()
             dis_gen_z2 = output.mean().item()
             optimizer_gen.step()
 
             if i % 1 == 0:
-                print('\t[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
+                print('\t[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f / %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
                       % (epoch, args.epochs, i, len(data_loader),
-                         err_dis.item(), err_gen.item(), dis_x, dis_gen_z1, dis_gen_z2))
+                         err_dis.item(), err_gen_1.item(), err_gen_2.item(), dis_x, dis_gen_z1, dis_gen_z2))
 
-    def evaluate(data_loader: DataLoader, set_name, n_sample):
+    def evaluate(data_loader: DataLoader, set_name, n_sample, single_net=False):
         print(f'\tEvaluate {set_name}:')
         output_data = np.zeros((n_sample * 32 * 32, 2))
         p = 0
