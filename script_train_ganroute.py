@@ -106,8 +106,8 @@ for name, param in discriminator.named_parameters():
 print(f'# of parameters: {n_param}')
 
 loss_f = nn.BCELoss()
-optimizer_gen = torch.optim.Adam(generator.parameters(), lr=args.lr, betas=(0.5, 0.999))
-optimizer_dis = torch.optim.Adam(discriminator.parameters(), lr=args.lr, betas=(0.5, 0.999))
+optimizer_gen = torch.optim.Adam(generator.parameters(), lr=args.lr, betas=(0.5, 0.999), weight_decay=5e-4)
+optimizer_dis = torch.optim.Adam(discriminator.parameters(), lr=args.lr, betas=(0.5, 0.999), weight_decay=5e-4)
 real_label = 1.
 fake_label = 0.
 

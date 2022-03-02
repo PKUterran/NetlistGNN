@@ -22,20 +22,17 @@ def plt_tendency(logs: List[Dict[str, Any]], fig_path: str) -> Dict[str, Any]:
     # list_test_grid_no_index_rmse = [log['test_grid_no_index_rmse'] for log in logs]
 
     fig = plt.figure(figsize=(6, 4))
-    plt.plot(list_epoch, list_train_grid_no_index_pearson_rho, color='red', label='pearson')
-    plt.plot(list_epoch, list_train_grid_no_index_spearmanr_rho, color='green', label='spearmanr')
-    plt.plot(list_epoch, list_train_grid_no_index_kendalltau_rho, color='blue', label='kendalltau')
-    plt.plot(list_epoch, list_test_grid_no_index_pearson_rho, color='red', linestyle='--')
-    plt.plot(list_epoch, list_test_grid_no_index_spearmanr_rho, color='green', linestyle='--')
-    plt.plot(list_epoch, list_test_grid_no_index_kendalltau_rho, color='blue', linestyle='--')
+    plt.plot(list_epoch, list_train_grid_no_index_pearson_rho, color='red', linestyle='--')
+    plt.plot(list_epoch, list_train_grid_no_index_spearmanr_rho, color='green', linestyle='--')
+    plt.plot(list_epoch, list_train_grid_no_index_kendalltau_rho, color='blue', linestyle='--')
+    plt.plot(list_epoch, list_test_grid_no_index_pearson_rho, color='red', label='pearson')
+    plt.plot(list_epoch, list_test_grid_no_index_spearmanr_rho, color='green', label='spearmanr')
+    plt.plot(list_epoch, list_test_grid_no_index_kendalltau_rho, color='blue', label='kendalltau')
     plt.legend()
     plt.savefig(fig_path)
 
     return {
         'train_time': list_train_time[-1] / 5,
-        'pearson': list_train_grid_no_index_pearson_rho[-1],
-        'spearmanr': list_train_grid_no_index_spearmanr_rho[-1],
-        'kendalltau': list_train_grid_no_index_kendalltau_rho[-1],
         'pearson (grid no index)': list_test_grid_no_index_pearson_rho[-1],
         'spearmanr (grid no index)': list_test_grid_no_index_spearmanr_rho[-1],
         'kendalltau (grid no index)': list_test_grid_no_index_kendalltau_rho[-1],
