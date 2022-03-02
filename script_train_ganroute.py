@@ -171,8 +171,8 @@ for epoch in range(0, args.epochs + 1):
             optimizer_gen.step()
 
             if i % 1 == 0:
-                print('\t[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f / %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
-                      % (epoch, args.epochs, i, len(data_loader),
+                print('\t[%d/%d][%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f / %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
+                      % (epoch, args.epochs, epoch_i, args.train_batch, i, len(data_loader),
                          err_dis.item(), err_gen_1.item(), err_gen_2.item(), dis_x, dis_gen_z1, dis_gen_z2))
 
     def evaluate(data_loader: DataLoader, set_name, n_sample, single_net=False):
@@ -198,7 +198,7 @@ for epoch in range(0, args.epochs + 1):
 
     t0 = time()
     if epoch:
-        for _ in range(args.train_batch):
+        for epoch_i in range(args.train_batch):
             train(train_loader)
         lr_scheduler_gen.step()
     logs[-1].update({'train_time': time() - t0})
