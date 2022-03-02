@@ -46,3 +46,11 @@ sysv-rc-conf --list
 service docker restart
 service docker start
 docker pull limbo018/dreamplace:cuda
+
+
+git pull -f
+git pull -f
+git pull -f
+git pull -f
+git pull -f
+git pull -f

@@ -189,7 +189,7 @@ for epoch in range(0, args.epochs + 1):
                 output_data[p:p + ln, 0], output_data[p:p + ln, 1] = tgt, prd
                 p += ln
         output_data = output_data[:p, :]
-        printout(output_data[:, 0], output_data[:, 1], "\t\tGRID_NO_INDEX: ", f'{set_name}_grid_no_index_')
+        printout(output_data[:, 0], output_data[:, 1], "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
 
 
     t0 = time()
@@ -198,8 +198,8 @@ for epoch in range(0, args.epochs + 1):
     logs[-1].update({'train_time': time() - t0})
 
     t2 = time()
-    evaluate(train_loader, 'train', n_train_sample)
-    evaluate(test_loader, 'test', n_test_sample)
+    evaluate(train_loader, 'train_', n_train_sample)
+    evaluate(test_loader, 'test_', n_test_sample)
     print("\tinference time", time() - t2)
     logs[-1].update({'eval_time': time() - t2})
     with open(f'{LOG_DIR}/{args.name}.json', 'w+') as fp:
