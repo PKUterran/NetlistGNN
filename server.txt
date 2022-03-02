@@ -3,7 +3,7 @@
 密码：sgj_fzbz_pku1898
 https://hz-t3.matpool.com:27838?token=khtqG9PjqB
 
-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
+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
 
 ssh -p 27928 ysw@hz.matpool.com
 ssh -p 27928 root@hz.matpool.com

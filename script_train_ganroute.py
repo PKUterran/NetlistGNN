@@ -52,9 +52,11 @@ def printout(arr1, arr2, prefix="", log_prefix=""):
 argparser = argparse.ArgumentParser("Training")
 argparser.add_argument('--name', type=str, default='GanRoute')
 argparser.add_argument('--test', type=str, default='superblue19')
-argparser.add_argument('--epochs', type=int, default=2000)
+argparser.add_argument('--epochs', type=int, default=200)
+argparser.add_argument('--train_batch', type=int, default=10)
 argparser.add_argument('--batch', type=int, default=128)
 argparser.add_argument('--lr', type=float, default=2e-4)
+argparser.add_argument('--lr_decay', type=float, default=1e-2)
 argparser.add_argument('--gan_lambda', type=float, default=0)
 argparser.add_argument('--l1_lambda', type=float, default=10)
 
@@ -108,6 +110,7 @@ print(f'# of parameters: {n_param}')
 loss_f = nn.BCELoss()
 optimizer_gen = torch.optim.Adam(generator.parameters(), lr=args.lr, betas=(0.5, 0.999), weight_decay=5e-4)
 optimizer_dis = torch.optim.Adam(discriminator.parameters(), lr=args.lr, betas=(0.5, 0.999), weight_decay=5e-4)
+lr_scheduler_gen = torch.optim.lr_scheduler.StepLR(optimizer_gen, step_size=1, gamma=(1 - args.lr_decay))
 real_label = 1.
 fake_label = 0.
 
@@ -117,6 +120,7 @@ if not os.path.isdir(LOG_DIR):
 
 for epoch in range(0, args.epochs + 1):
     print(f'##### EPOCH {epoch} #####')
+    print(f"\tLearning rate of generator: {optimizer_gen.state_dict()['param_groups'][0]['lr']}")
     logs.append({'epoch': epoch})
 
     def train(data_loader: DataLoader):
@@ -194,7 +198,9 @@ for epoch in range(0, args.epochs + 1):
 
     t0 = time()
     if epoch:
-        train(train_loader)
+        for _ in range(args.train_batch):
+            train(train_loader)
+        lr_scheduler_gen.step()
     logs[-1].update({'train_time': time() - t0})
 
     t2 = time()
