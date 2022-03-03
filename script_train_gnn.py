@@ -135,7 +135,7 @@ arch.insert(0, 2 * nfeats + args.degdim)
 arch.append(1)
 
 train_dataset_names = [
-    # 'superblue7_processed',
+    'superblue7_processed',
     'superblue9_processed',
     'superblue14_processed',
     'superblue16_processed',
