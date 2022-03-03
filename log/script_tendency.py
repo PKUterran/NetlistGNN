@@ -20,14 +20,14 @@ def plt_tendency(logs: List[Dict[str, Any]], fig_path: str) -> Dict[str, Any]:
     list_test_node_level_kendalltau_rho = [log['test_node_level_kendalltau_rho'] for log in logs]
     # list_test_node_level_mae = [log['test_node_level_mae'] for log in logs]
     # list_test_node_level_rmse = [log['test_node_level_rmse'] for log in logs]
-    list_test_grid_no_index_pearson_rho = [log['grid_no_index_pearson_rho'] for log in logs]
-    list_test_grid_no_index_spearmanr_rho = [log['grid_no_index_spearmanr_rho'] for log in logs]
-    list_test_grid_no_index_kendalltau_rho = [log['grid_no_index_kendalltau_rho'] for log in logs]
+    list_test_grid_no_index_pearson_rho = [log['test_grid_no_index_pearson_rho'] for log in logs]
+    list_test_grid_no_index_spearmanr_rho = [log['test_grid_no_index_spearmanr_rho'] for log in logs]
+    list_test_grid_no_index_kendalltau_rho = [log['test_grid_no_index_kendalltau_rho'] for log in logs]
     # list_test_grid_no_index_mae = [log['test_grid_no_index_mae'] for log in logs]
     # list_test_grid_no_index_rmse = [log['test_grid_no_index_rmse'] for log in logs]
-    list_test_grid_index_pearson_rho = [log['grid_index_pearson_rho'] for log in logs]
-    list_test_grid_index_spearmanr_rho = [log['grid_index_spearmanr_rho'] for log in logs]
-    list_test_grid_index_kendalltau_rho = [log['grid_index_kendalltau_rho'] for log in logs]
+    list_test_grid_index_pearson_rho = [log['test_grid_index_pearson_rho'] for log in logs]
+    list_test_grid_index_spearmanr_rho = [log['test_grid_index_spearmanr_rho'] for log in logs]
+    list_test_grid_index_kendalltau_rho = [log['test_grid_index_kendalltau_rho'] for log in logs]
     # list_test_grid_index_mae = [log['test_grid_index_mae'] for log in logs]
     # list_test_grid_index_rmse = [log['test_grid_index_rmse'] for log in logs]
 
@@ -41,9 +41,9 @@ def plt_tendency(logs: List[Dict[str, Any]], fig_path: str) -> Dict[str, Any]:
     plt.plot(list_epoch, list_test_grid_no_index_pearson_rho, color='red', linestyle='-.')
     plt.plot(list_epoch, list_test_grid_no_index_spearmanr_rho, color='green', linestyle='-.')
     plt.plot(list_epoch, list_test_grid_no_index_kendalltau_rho, color='blue', linestyle='-.')
-    # plt.plot(list_epoch, list_test_grid_index_pearson_rho, color='red', linestyle=':')
-    # plt.plot(list_epoch, list_test_grid_index_spearmanr_rho, color='green', linestyle=':')
-    # plt.plot(list_epoch, list_test_grid_index_kendalltau_rho, color='blue', linestyle=':')
+    plt.plot(list_epoch, list_test_grid_index_pearson_rho, color='red', linestyle=':')
+    plt.plot(list_epoch, list_test_grid_index_spearmanr_rho, color='green', linestyle=':')
+    plt.plot(list_epoch, list_test_grid_index_kendalltau_rho, color='blue', linestyle=':')
     plt.legend()
     plt.savefig(fig_path)
 
@@ -67,11 +67,11 @@ def plt_tendency(logs: List[Dict[str, Any]], fig_path: str) -> Dict[str, Any]:
 
 PLT_TUPLES = [
     ('hyper', 'superblue19/hyper.json'),
-    # ('hyper-xbi', 'superblue19/hyper-xbi.json'),
-    # ('hyper-xgr', 'superblue19/hyper-xgr.json'),
-    # ('SAGE', 'superblue19/SAGE.json'),
-    # ('GCN', 'superblue19/GCN.json'),
-    # ('GAT', 'superblue19/GAT.json'),
+    ('hyper-xbi', 'superblue19/hyper-xbi.json'),
+    ('hyper-xgr', 'superblue19/hyper-xgr.json'),
+    ('SAGE', 'superblue19/SAGE.json'),
+    ('GCN', 'superblue19/GCN.json'),
+    ('GAT', 'superblue19/GAT.json'),
     # ('SAGE-pos', 'superblue19/SAGE-pos.json'),
     # ('GCN-pos', 'superblue19/GCN-pos.json'),
     # ('GAT-pos', 'superblue19/GAT-pos.json'),

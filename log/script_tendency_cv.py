@@ -41,6 +41,7 @@ def plt_tendency(logs: List[Dict[str, Any]], fig_path: str) -> Dict[str, Any]:
 
 PLT_TUPLES = [
     ('GanRoute', 'superblue19/GanRoute.json'),
+    ('GanRoute-g1', 'superblue19/GanRoute-g1.json'),
 ]
 
 if __name__ == '__main__':
