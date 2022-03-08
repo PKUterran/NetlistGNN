@@ -7,6 +7,8 @@ python script_train.py --name hyper-xbi --node_feats 0
 python script_train_gnn.py --name GAT --graph_type GAT --logic_features True
 python script_train_gnn.py --name GCN --graph_type GCN --logic_features True
 python script_train_gnn.py --name SAGE --graph_type SAGE --logic_features True
+python script_train_gnn.py --name CongestionNet --graph_type GAT --logic_features False --architecture "400,320,260"
+python script_train_gnn.py --name GAT-pos --graph_type GAT --logic_features False
 
 # CV
 python script_train_ganroute.py --name GanRoute
