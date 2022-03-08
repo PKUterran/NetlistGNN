@@ -83,7 +83,7 @@ def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name
 
 
 argparser = argparse.ArgumentParser("Training")
-argparser.add_argument('--name', type=str, default='hyper')
+argparser.add_argument('--name', type=str, default='main')
 argparser.add_argument('--test', type=str, default='superblue19')
 argparser.add_argument('--epochs', type=int, default=100)
 argparser.add_argument('--batch', type=int, default=1)
@@ -237,6 +237,8 @@ for epoch in range(0, args.epochs + 1):
         with torch.no_grad():
             for z, (hmg, htg, ggs) in enumerate(ltg):
                 hmg, htg, ggs = to_device(hmg, htg, ggs)
+                # print(hmg.num_nodes(), hmg.num_edges())
+                # print([(gg.num_nodes(), gg.num_edges()) for gg in ggs])
                 prd = model.forward(
                     in_node_feat=htg.nodes['node'].data['hv'],
                     in_net_feat=htg.nodes['net'].data['hv'],
@@ -263,6 +265,7 @@ for epoch in range(0, args.epochs + 1):
 
     evaluate(train_list_tuple_graph, 'train_', n_train_node)
     evaluate(test_list_tuple_graph, 'test_', n_test_node, single_net=True)
+    # exit(123)
     print("\tinference time", time() - t2)
     logs[-1].update({'eval_time': time() - t2})
     with open(f'{LOG_DIR}/{args.name}.json', 'w+') as fp:

@@ -134,7 +134,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
         # print([len(nodes) for nodes in box_node.values()])
         # exit(123)
         for nodes in box_node.values():
-            us_, vs_ = node_pairs_among(nodes)
+            us_, vs_ = node_pairs_among(nodes, max_cap=5)
             us.extend(us_)
             vs.extend(vs_)
         grid_graph = add_self_loop(dgl.graph((us, vs), num_nodes=n_node))

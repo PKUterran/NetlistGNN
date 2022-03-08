@@ -18,10 +18,10 @@ args = argparser.parse_args()
 
 dataset_names = [
     'superblue7_processed',
-    'superblue9_processed',
-    'superblue14_processed',
-    'superblue16_processed',
-    'superblue19_processed',
+    # 'superblue9_processed',
+    # 'superblue14_processed',
+    # 'superblue16_processed',
+    # 'superblue19_processed',
 ]
 
 for dataset_name in dataset_names:
@@ -30,4 +30,4 @@ for dataset_name in dataset_names:
             print(f'Loading {dataset_name}:')
             load_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
                       graph_scale=args.graph_scale,
-                      bin_x=args.binx, bin_y=args.biny, force_save=False, use_tqdm=True)
+                      bin_x=args.binx, bin_y=args.biny, force_save=True, use_tqdm=True)

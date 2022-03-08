@@ -1,10 +1,13 @@
 # Ours
 python script_train.py --name hyper
+python script_train.py --name hyper-small --node_feats 24 --net_feats 36 --pin_feats 3 --grid_feats 8 --heads 1
+python script_train.py --name hyper-small --layers 1
 python script_train.py --name hyper-xgr --grid_feats 0
 python script_train.py --name hyper-xbi --node_feats 0
 
 # GNN
 python script_train_gnn.py --name GAT --graph_type GAT --logic_features True
+python script_train_gnn.py --name GAT-big --graph_type GAT --logic_features True --architecture "600,500,400,300"
 python script_train_gnn.py --name GCN --graph_type GCN --logic_features True
 python script_train_gnn.py --name SAGE --graph_type SAGE --logic_features True
 python script_train_gnn.py --name CongestionNet --graph_type GAT --logic_features False --architecture "400,320,260"
