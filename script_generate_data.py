@@ -18,10 +18,10 @@ args = argparser.parse_args()
 
 dataset_names = [
     'superblue7_processed',
-    # 'superblue9_processed',
-    # 'superblue14_processed',
-    # 'superblue16_processed',
-    # 'superblue19_processed',
+    'superblue9_processed',
+    'superblue14_processed',
+    'superblue16_processed',
+    'superblue19_processed',
 ]
 
 for dataset_name in dataset_names:
