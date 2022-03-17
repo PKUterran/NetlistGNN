@@ -1,6 +1,7 @@
 import os
 import shutil
 import numpy as np
+import pickle
 import torch
 import torch.nn as nn
 from torchvision import datasets, transforms
@@ -50,6 +51,8 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
     if not force_save and os.path.exists(f'{dir_name}/{INPUT_IMAGE}.png'):
         return
 
+    with open(f'{dir_name}/edge.pkl', 'rb') as fp:
+        edge = pickle.load(fp)
     h_capacity = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_h.npy')
     v_capacity = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_v.npy')
     h_net_density = np.load(f'{raw_dir_name}/hdm.npy')
@@ -61,6 +64,7 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
 
     len_x = h_capacity.shape[0]
     len_y = h_capacity.shape[1]
+    node_density = np.zeros(shape=[len_x, len_y])
     pin_density = np.zeros(shape=[len_x, len_y])
     for x, y in zip(xdata, ydata):
         if x < 1e-5 and y < 1e-5:
@@ -69,7 +73,13 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
         key2 = int(np.rint(y / bin_y))
         if key1 >= len_x or key2 >= len_y:
             continue
-        pin_density[key1, key2] += 1
+        node_density[key1, key2] += 1
+    for i, (_, list_node_feats) in enumerate(edge.items()):
+        for node, pin_px, pin_py, _ in list_node_feats:
+            px, py = xdata[node], ydata[node]
+            if not px and not py:
+                continue
+            pin_density[np.rint((px + pin_px) / bin_x), np.rint((py + pin_py) / bin_y)] += 1
 
     r_channel, g_channel, b_channel = generate_rgb_init(
         h_capacity=h_capacity, v_capacity=v_capacity,
