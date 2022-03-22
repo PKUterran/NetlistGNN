@@ -31,11 +31,11 @@ class LatticeMPBlock(nn.Module):
 
 
 class FeatureGenBlock(nn.Module):
-    def __init__(self, dim):
+    def __init__(self, n_dim, c_dim, dim):
         super(FeatureGenBlock, self).__init__()
-        self.lin1_n = nn.Linear(dim, dim)
+        self.lin1_n = nn.Linear(n_dim, dim)
         self.lin2_n = nn.Linear(dim, dim)
-        self.lin1_c = nn.Linear(dim, dim)
+        self.lin1_c = nn.Linear(c_dim, dim)
         self.lin2_c = nn.Linear(2 * dim, dim)
         self.res_n = ResidualBlock(dim)
         self.res_c = ResidualBlock(dim)
@@ -82,14 +82,16 @@ class HyperMPBlock(nn.Module):
 
 
 class LHNN(nn.Module):
-    def __init__(self, dim=32):
+    def __init__(self, n_dim, c_dim, dim=32):
         super(LHNN, self).__init__()
-        self.feature_gen = FeatureGenBlock(dim)
+        self.feature_gen = FeatureGenBlock(n_dim, c_dim, dim)
         self.hyper_mp_1 = HyperMPBlock(dim)
         self.hyper_mp_2 = HyperMPBlock(dim)
         self.lattice_mp = LatticeMPBlock(dim)
         self.lattice_mp_s1 = LatticeMPBlock(dim)
         self.lattice_mp_s2 = LatticeMPBlock(dim)
+        self.v4_readout = nn.Linear(dim, 1)
+        self.v6_readout = nn.Linear(dim, 1)
 
     def forward(self, v_n: torch.Tensor, v_c: torch.Tensor, g_nc: torch.Tensor, g_cn: torch.Tensor, na_cc: torch.Tensor
                 ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -99,7 +101,9 @@ class LHNN(nn.Module):
         v4_c = self.lattice_mp.forward(v3_c, na_cc)
         v5_c = self.lattice_mp_s1.forward(v4_c, na_cc)
         v6_c = self.lattice_mp_s2.forward(v5_c, na_cc)
-        return v6_c, v4_c
+        v4_out = F.sigmoid(self.v4_readout(v4_c))
+        v6_out = F.sigmoid(self.v4_readout(v6_c))
+        return v6_out, v4_out
 
     @staticmethod
     def generate_adj(a_cc: torch.Tensor, h_nc: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:

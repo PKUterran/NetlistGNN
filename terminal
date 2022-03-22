@@ -16,3 +16,10 @@ python script_train_gnn.py --name GAT-pos --graph_type GAT --logic_features Fals
 # CV
 python script_train_ganroute.py --name GanRoute
 python script_train_ganroute.py --name GanRoute-g1 --gan_lambda 1 --lr_decay 0 --l1_lambda 0.1
+
+# data
+python script_process.py --datadir superblue7
+python script_process.py --datadir superblue9
+python script_process.py --datadir superblue14
+python script_process.py --datadir superblue16
+python script_process.py --datadir superblue19

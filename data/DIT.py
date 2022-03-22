@@ -43,7 +43,7 @@ def generate_rgb_init(h_capacity: np.ndarray, v_capacity: np.ndarray,
     b_channel[::2, 1::2] = v_capacity
     g_channel[1::2, 1::2] = h_net_density * scale + v_net_density * scale
     b_channel[1::2, 1::2] = pin_density
-    return r_channel * 64, g_channel * 64, b_channel * 6
+    return r_channel * 180, g_channel * 64, b_channel * 2
 
 
 def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode: str,
@@ -53,10 +53,10 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
 
     with open(f'{dir_name}/edge.pkl', 'rb') as fp:
         edge = pickle.load(fp)
-    h_capacity = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_h.npy')
-    v_capacity = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_v.npy')
-    h_net_density = np.load(f'{raw_dir_name}/hdm.npy')
-    v_net_density = np.load(f'{raw_dir_name}/vdm.npy')
+    h_capacity = np.load(f'{raw_dir_name}/hdm.npy')
+    v_capacity = np.load(f'{raw_dir_name}/vdm.npy')
+    h_net_density = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_h.npy')
+    v_net_density = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_v.npy')
     xdata = np.load(f'{dir_name}/xdata_{given_iter}.npy')
     ydata = np.load(f'{dir_name}/ydata_{given_iter}.npy')
     labels = np.load(f'{dir_name}/iter_{given_iter}_grid_label_full_{hashcode}_.npy')
@@ -79,7 +79,7 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
             px, py = xdata[node], ydata[node]
             if not px and not py:
                 continue
-            pin_density[np.rint((px + pin_px) / bin_x), np.rint((py + pin_py) / bin_y)] += 1
+            pin_density[int((px + pin_px) / bin_x), int((py + pin_py) / bin_y)] += 1
 
     r_channel, g_channel, b_channel = generate_rgb_init(
         h_capacity=h_capacity, v_capacity=v_capacity,

@@ -201,7 +201,7 @@ if __name__ == '__main__':
     argparser.add_argument('--binx', type=int, default=32, help="Number of bins in x direction.")
     argparser.add_argument('--biny', type=str, default=40, help="Number of bins in y direction.")
     argparser.add_argument('--cong', type=bool, default=True, help="Whether generate a congestion map.")
-    argparser.add_argument('--nctu', type=bool, default=False, help="RUDY will be used if this is set to False.")
+    argparser.add_argument('--nctu', type=bool, default=True, help="RUDY will be used if this is set to False.")
     argparser.add_argument('--mask', type=bool, default=False,
                            help="The grid level congestion is zeroed when no node is present.")
     argparser.add_argument('--initial', type=bool, default=False, help="Inital congestion is subtracted.")

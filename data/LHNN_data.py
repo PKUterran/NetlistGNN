@@ -43,6 +43,14 @@ class SparseBinaryMatrix:
             ys |= vs
         return ys
 
+    def drop(self, cap=6):
+        for k, vs in self.link_set.items():
+            if len(vs) > cap:
+                for _ in range(len(vs) - cap):
+                    vs.pop()
+                self.link_set[k] = vs
+        return self
+
     def dense(self) -> torch.Tensor:
         matrix = torch.zeros(self.shape, dtype=torch.float32)
         for u, vs in self.link_set.items():
@@ -53,6 +61,7 @@ class SparseBinaryMatrix:
 
 def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode: str,
               bin_x: float = 32, bin_y: float = 40, split_size=32, force_save=False, use_tqdm=True):
+    np.random.seed(0)
     file_path = f'{dir_name}/LHNN_{given_iter}.pickle'
     if os.path.exists(file_path) and not force_save:
         return
@@ -169,7 +178,7 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
 
     list_tensors: List[Tuple[torch.Tensor, torch.Tensor, SparseBinaryMatrix, SparseBinaryMatrix, torch.Tensor]] = []
     for c_split in tqdm.tqdm(c_splits, total=len(c_splits)):
-        h_nc_ = h_nc.slice(c_split)
+        h_nc_ = h_nc.slice(c_split).drop()
         net_set = list(h_nc_.y_set)
         h_nc_ = h_nc_.slice(range(h_nc_.shape[0]), net_set)
 
