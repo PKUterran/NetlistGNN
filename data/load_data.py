@@ -65,6 +65,23 @@ def node_pairs_among(nodes, max_cap=-1):
     return us, vs
 
 
+def get_pin_density(shape, bin_x, bin_y, xdata, ydata, edge) -> np.ndarray:
+    pin_density = np.zeros(shape, dtype=np.float)
+    for i, (_, list_node_feats) in tqdm.tqdm(enumerate(edge.items()), total=len(edge.keys())):
+        for node, pin_px, pin_py, _ in list_node_feats:
+            px, py = xdata[node], ydata[node]
+            if not px and not py:
+                continue
+            pin_density[int((px + pin_px) / bin_x), int((py + pin_py) / bin_y)] += 1
+    return pin_density
+
+
+def feature_grid2node(grid_feature: np.ndarray, bin_x, bin_y, xdata, ydata) -> np.ndarray:
+    return np.array([
+        grid_feature[int(x / bin_x), int(y / bin_y)] for x, y in zip(xdata, ydata)
+    ], dtype=np.float)
+
+
 def load_data(dir_name: str, given_iter, index: int, hashcode: str,
               graph_scale: int = 1000, bin_x: float = 32, bin_y: float = 40, force_save=False, use_tqdm=True
               ) -> List[Tuple[dgl.DGLGraph, dgl.DGLHeteroGraph, List[dgl.DGLGraph]]]:
@@ -81,11 +98,21 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     pdata = np.load(f'{dir_name}/pdata.npy')
     xdata = np.load(f'{dir_name}/xdata_{given_iter}.npy')
     ydata = np.load(f'{dir_name}/ydata_{given_iter}.npy')
+    raw_dir_name = dir_name.split('_')[0]
+    h_net_density_grid = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_h.npy')
+    v_net_density_grid = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_v.npy')
+    pin_density_grid = get_pin_density(h_net_density_grid.shape, bin_x, bin_y, xdata, ydata, edge)
+
     labels = np.load(f'{dir_name}/iter_{given_iter}_node_label_full_{hashcode}_.npy')
     labels = labels[:, index]
     n_node = labels.shape[0]
 
-    node_hv = torch.tensor(np.vstack((sizdata_x, sizdata_y, pdata)), dtype=torch.float32).t()
+    node_hv = torch.tensor(np.vstack((
+        sizdata_x, sizdata_y, pdata,
+        feature_grid2node(h_net_density_grid, bin_x, bin_y, xdata, ydata),
+        feature_grid2node(v_net_density_grid, bin_x, bin_y, xdata, ydata),
+        feature_grid2node(pin_density_grid, bin_x, bin_y, xdata, ydata),
+    )), dtype=torch.float32).t()
     node_pos = torch.tensor(np.vstack((xdata, ydata)), dtype=torch.float32).t()
 
     # homo_graph

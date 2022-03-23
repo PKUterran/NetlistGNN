@@ -127,22 +127,26 @@ else:
 assert args.graph_type in ['GCN', 'SAGE', 'GAT']
 
 if args.logic_features:
-    nfeats = 3
+    nfeats = 6
 else:
-    nfeats = 4
+    nfeats = 7
 
 arch.insert(0, 2 * nfeats + args.degdim)
 arch.append(1)
 
 train_dataset_names = [
+    'superblue1_processed',
+    'superblue2_processed',
+    'superblue3_processed',
+    'superblue5_processed',
+    'superblue6_processed',
     'superblue7_processed',
     'superblue9_processed',
+    'superblue11_processed',
     'superblue14_processed',
-    'superblue16_processed',
 ]
-test_dataset_names = [
-    'superblue19_processed',
-]
+validate_dataset_name = 'superblue16_processed'
+test_dataset_name = 'superblue19_processed'
 
 train_list_tuple_graph, test_list_tuple_graph = [], []
 
@@ -155,7 +159,7 @@ for dataset_name in train_dataset_names:
                                          bin_x=args.binx, bin_y=args.biny, force_save=False)
             train_list_tuple_graph.extend(list_tuple_graph)
 # exit(123)
-for dataset_name in test_dataset_names:
+for dataset_name in [test_dataset_name]:
     for i in range(0, args.itermax):
         if os.path.isfile(f'data/{dataset_name}/iter_{i}_node_label_full_{args.hashcode}_.npy'):
             print(f'Loading {dataset_name}:')

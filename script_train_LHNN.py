@@ -82,12 +82,18 @@ if not args.device == 'cpu':
     torch.cuda.manual_seed(seed)
 
 train_dataset_names = [
+    'superblue1_processed',
+    'superblue2_processed',
+    'superblue3_processed',
+    'superblue5_processed',
+    'superblue6_processed',
     'superblue7_processed',
     'superblue9_processed',
+    'superblue11_processed',
     'superblue14_processed',
-    'superblue16_processed',
 ]
 test_dataset_names = [
+    # 'superblue16_processed',
     'superblue19_processed',
 ]
 
@@ -168,7 +174,7 @@ for epoch in range(0, args.epochs + 1):
                 outputdata[p:p + ln, 0], outputdata[p:p + ln, 1] = tgt, prd
                 p += ln
         outputdata = outputdata[:p, :]
-        printout(outputdata[:, 0], outputdata[:, 1], "\t\tGRID_LEVEL: ", f'{set_name}grid_no_index_')
+        printout(outputdata[:, 0], outputdata[:, 1], "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
 
 
     t0 = time()

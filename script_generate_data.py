@@ -17,8 +17,14 @@ argparser.add_argument('--biny', type=int, default=40)
 args = argparser.parse_args()
 
 dataset_names = [
+    'superblue1_processed',
+    'superblue2_processed',
+    'superblue3_processed',
+    'superblue5_processed',
+    'superblue6_processed',
     'superblue7_processed',
     'superblue9_processed',
+    'superblue11_processed',
     'superblue14_processed',
     'superblue16_processed',
     'superblue19_processed',
