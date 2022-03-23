@@ -48,6 +48,7 @@ def generate_rgb_init(h_capacity: np.ndarray, v_capacity: np.ndarray,
 
 def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode: str,
               bin_x: float = 32, bin_y: float = 40, force_save=False, use_tqdm=True):
+    print(f'processing {raw_dir_name}..')
     if not force_save and os.path.exists(f'{dir_name}/{INPUT_IMAGE}.png'):
         return
 
