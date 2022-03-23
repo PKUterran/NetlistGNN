@@ -3,7 +3,7 @@ import numpy as np
 from scipy.stats import pearsonr, spearmanr, kendalltau
 from typing import Tuple, List, Dict, Any
 
-test_dataset_name_iter = ('superblue19', 800)
+test_dataset_name_iter = ('superblue19', 900)
 
 LOG_DIR = f'log/superblue19'
 logs: List[Dict[str, Any]] = []
