@@ -34,10 +34,10 @@ def printout(arr1, arr2, prefix="", log_prefix=""):
 
 
 def load_rudy_nctu(raw_dir_name: str, given_iter: int) -> Tuple[np.ndarray, np.ndarray]:
-    h_bad_cmap = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_h.npy')
-    v_bad_cmap = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_v.npy')
-    h_cmap = np.load(f'{raw_dir_name}/iter_{given_iter}_cmap_h.npy')
-    v_cmap = np.load(f'{raw_dir_name}/iter_{given_iter}_cmap_v.npy')
+    h_bad_cmap = np.load(f'data/{raw_dir_name}/iter_{given_iter}_bad_cmap_h.npy')
+    v_bad_cmap = np.load(f'data/{raw_dir_name}/iter_{given_iter}_bad_cmap_v.npy')
+    h_cmap = np.load(f'data/{raw_dir_name}/iter_{given_iter}_cmap_h.npy')
+    v_cmap = np.load(f'data/{raw_dir_name}/iter_{given_iter}_cmap_v.npy')
     return h_bad_cmap + v_bad_cmap, h_cmap + v_cmap
 
 
