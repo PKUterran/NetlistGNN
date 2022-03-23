@@ -6,7 +6,7 @@ from typing import Tuple, List, Dict, Any
 test_dataset_name_iter = ('superblue19', 900)
 
 LOG_DIR = f'log/superblue19'
-logs: List[Dict[str, Any]] = []
+logs: Dict[str, Any] = {}
 
 
 def printout(arr1, arr2, prefix="", log_prefix=""):
@@ -21,7 +21,7 @@ def printout(arr1, arr2, prefix="", log_prefix=""):
     print(prefix + "kendall", kendalltau_rho, kendalltau_pval)
     print(prefix + "MAE", mae)
     print(prefix + "RMSE", rmse)
-    logs[-1].update({
+    logs.update({
         f'{log_prefix}pearson_rho': pearsonr_rho,
         f'{log_prefix}pearsonr_pval': pearsonr_pval,
         f'{log_prefix}spearmanr_rho': spearmanr_rho,
@@ -38,7 +38,7 @@ def load_rudy_nctu(raw_dir_name: str, given_iter: int) -> Tuple[np.ndarray, np.n
     v_bad_cmap = np.load(f'data/{raw_dir_name}/iter_{given_iter}_bad_cmap_v.npy')
     h_cmap = np.load(f'data/{raw_dir_name}/iter_{given_iter}_cmap_h.npy')
     v_cmap = np.load(f'data/{raw_dir_name}/iter_{given_iter}_cmap_v.npy')
-    return h_bad_cmap + v_bad_cmap, h_cmap + v_cmap
+    return h_bad_cmap + v_bad_cmap, (h_cmap + v_cmap)[:, :, 0]
 
 
 rudy_output, nctu_output = load_rudy_nctu(test_dataset_name_iter[0], test_dataset_name_iter[1])

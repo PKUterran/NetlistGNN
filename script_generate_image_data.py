@@ -15,19 +15,19 @@ if __name__ == '__main__':
     dump_data_image('data/superblue16_processed', 'data/superblue16', 700, 8, '100000', force_save=False)
     dump_data_image('data/superblue19_processed', 'data/superblue19', 900, 8, '100000', force_save=False)
     collect_data_image([
-        'superblue1_processed',
-        'superblue2_processed',
-        'superblue3_processed',
-        'superblue5_processed',
-        'superblue6_processed',
-        'superblue7_processed',
-        'superblue9_processed',
-        'superblue11_processed',
-        'superblue14_processed',
+        'data/superblue1_processed',
+        'data/superblue2_processed',
+        'data/superblue3_processed',
+        'data/superblue5_processed',
+        'data/superblue6_processed',
+        'data/superblue7_processed',
+        'data/superblue9_processed',
+        'data/superblue11_processed',
+        'data/superblue14_processed',
     ], 'data/train_images', clear_files=True)
     collect_data_image([
-        # 'superblue16_processed',
-        'superblue19_processed',
+        # 'data/superblue16_processed',
+        'data/superblue19_processed',
     ], 'data/test_images', clear_files=False)
     _, train_images = load_data_image('data/train_images')
     _, test_images = load_data_image('data/test_images')
