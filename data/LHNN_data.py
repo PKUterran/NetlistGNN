@@ -79,6 +79,7 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
     h_net_density = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_h.npy')
     v_net_density = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_v.npy')
     pin_density = np.zeros_like(h_net_density)
+    node_density = np.zeros_like(h_net_density)
     cell_mask = np.zeros_like(h_net_density)
     n_net = len(edge.keys())
     n_node = node_labels.shape[0]
@@ -92,6 +93,14 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
     v_c = torch.zeros([n_grid, 4], dtype=torch.float32)
     a_cc = SparseBinaryMatrix((n_grid, n_grid))
     h_nc = SparseBinaryMatrix((n_grid, n_net))
+
+    for x, y in zip(xdata, ydata):
+        if x < 1e-5 and y < 1e-5:
+            continue
+        key1 = int(x / bin_x)
+        key2 = int(y / bin_y)
+        node_density[key1, key2] += 1
+    mask = torch.tensor(node_density.flatten(), dtype=torch.float32)
 
     def xy_index(x_, y_):
         return x_ * n_y_grid + y_
@@ -176,7 +185,8 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
             y_lower += split_size
         x_lower += split_size
 
-    list_tensors: List[Tuple[torch.Tensor, torch.Tensor, SparseBinaryMatrix, SparseBinaryMatrix, torch.Tensor]] = []
+    list_tensors: List[Tuple[torch.Tensor, torch.Tensor, SparseBinaryMatrix, SparseBinaryMatrix,
+                             torch.Tensor, torch.Tensor]] = []
     for c_split in tqdm.tqdm(c_splits, total=len(c_splits)):
         h_nc_ = h_nc.slice(c_split).drop()
         net_set = list(h_nc_.y_set)
@@ -186,14 +196,16 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
         v_c_ = v_c[c_split, :]
         a_cc_ = a_cc.slice(c_split, c_split)
         labels_ = labels[c_split]
-        list_tensors.append((v_n_, v_c_, a_cc_, h_nc_, labels_))
+        mask_ = mask[c_split]
+        list_tensors.append((v_n_, v_c_, a_cc_, h_nc_, labels_, mask_))
 
     with open(file_path, 'wb+') as fp:
         pickle.dump(list_tensors, fp)
 
 
 def load_data(dir_name: str, given_iter
-              ) -> List[Tuple[torch.Tensor, torch.Tensor, SparseBinaryMatrix, SparseBinaryMatrix, torch.Tensor]]:
+              ) -> List[Tuple[torch.Tensor, torch.Tensor, SparseBinaryMatrix, SparseBinaryMatrix,
+                              torch.Tensor, torch.Tensor]]:
     file_path = f'{dir_name}/LHNN_{given_iter}.pickle'
     with open(file_path, 'rb') as fp:
         list_tensors = pickle.load(fp)

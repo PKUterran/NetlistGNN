@@ -140,7 +140,7 @@ for epoch in range(0, args.epochs + 1):
     def train(ltg):
         model.train()
         t1 = time()
-        for j, (v_n, v_c, a_cc_, h_nc_, labels) in enumerate(ltg):
+        for j, (v_n, v_c, a_cc_, h_nc_, labels, mask) in enumerate(ltg):
             a_cc, h_nc = a_cc_.dense(), h_nc_.dense()
             optimizer.zero_grad()
             g_nc, g_cn, na_cc = model.generate_adj(a_cc, h_nc)
@@ -158,10 +158,10 @@ for epoch in range(0, args.epochs + 1):
     def evaluate(ltg, set_name, n_node, single_net=False):
         print(f'\tEvaluate {set_name}:')
         model.eval()
-        outputdata = np.zeros((n_node, 2))
+        output_data = np.zeros((n_node, 3))
         p = 0
         with torch.no_grad():
-            for j, (v_n, v_c, a_cc_, h_nc_, labels) in enumerate(ltg):
+            for j, (v_n, v_c, a_cc_, h_nc_, labels, mask) in enumerate(ltg):
                 a_cc, h_nc = a_cc_.dense(), h_nc_.dense()
                 g_nc, g_cn, na_cc = model.generate_adj(a_cc, h_nc)
                 v_n, v_c, g_nc, g_cn, na_cc = \
@@ -170,11 +170,14 @@ for epoch in range(0, args.epochs + 1):
                 pred = pred * args.scalefac
                 tgt = labels.cpu().data.numpy().flatten()
                 prd = pred.cpu().data.numpy().flatten()
+                msk = mask.cpu().data.numpy().flatten()
                 ln = len(tgt)
-                outputdata[p:p + ln, 0], outputdata[p:p + ln, 1] = tgt, prd
+                output_data[p:p + ln, 0], output_data[p:p + ln, 1], output_data[p:p + ln, 2] = tgt, prd, msk
                 p += ln
-        outputdata = outputdata[:p, :]
-        printout(outputdata[:, 0], outputdata[:, 1], "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
+        output_data = output_data[:p, :]
+        printout(output_data[:, 0], output_data[:, 1], "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
+        printout(output_data[output_data[:, 2] > 0, 0], output_data[output_data[:, 2] > 0, 1],
+                 "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
 
 
     t0 = time()
