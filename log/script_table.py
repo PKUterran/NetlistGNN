@@ -40,7 +40,7 @@ PLT_TUPLES_3 = [
     ('Ours (o. topo.)', 'superblue19/hyper-xgr.json'),
     ('line', ''),
 
-    ('GanRoute', 'superblue19/GanRoute.json'),
+    ('pix2pix', 'superblue19/GanRoute.json'),
     ('Ours (o. geom.)', 'superblue19/hyper-xbi.json'),
     ('line', ''),
 
@@ -50,19 +50,21 @@ PLT_TUPLES_3 = [
 ]
 
 if __name__ == '__main__':
-    for name, path in PLT_TUPLES_3:
-        if name == 'line':
-            print()
-        try:
-            with open(path) as fp:
-                d = json.load(fp)
-            ret = load_json(d)
-            print(f'{name}', end='')
-            for _, v in ret.items():
-                if v is None:
-                    print(f'\t-', end='')
-                else:
-                    print(f'\t{v:.3f}', end='')
-            print()
-        except FileNotFoundError:
-            print(f'{name}')
+    with open('table.txt', 'w+') as fp1:
+        for name, path in PLT_TUPLES_3:
+            if name == 'line':
+                print(file=fp1)
+                continue
+            try:
+                with open(path) as fp:
+                    d = json.load(fp)
+                ret = load_json(d)
+                print(f'{name}', end='', file=fp1)
+                for _, v in ret.items():
+                    if v is None:
+                        print(f'\t-', end='', file=fp1)
+                    else:
+                        print(f'\t{v:.3f}', end='', file=fp1)
+                print(file=fp1)
+            except FileNotFoundError:
+                print(f'{name}', file=fp1)

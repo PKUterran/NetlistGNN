@@ -85,11 +85,12 @@ def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name
 argparser = argparse.ArgumentParser("Training")
 argparser.add_argument('--name', type=str, default='main')
 argparser.add_argument('--test', type=str, default='superblue19')
-argparser.add_argument('--epochs', type=int, default=100)
+argparser.add_argument('--epochs', type=int, default=20)
+argparser.add_argument('--train_epoch', type=int, default=5)
 argparser.add_argument('--batch', type=int, default=1)
 argparser.add_argument('--lr', type=float, default=1e-3)
 argparser.add_argument('--weight_decay', type=float, default=2e-5)
-argparser.add_argument('--lr_decay', type=float, default=0.98)
+argparser.add_argument('--lr_decay', type=float, default=1e-1)
 
 argparser.add_argument('--layers', type=int, default=2)  # 2
 argparser.add_argument('--node_feats', type=int, default=64)  # 128
@@ -100,9 +101,8 @@ argparser.add_argument('--heads', type=int, default=2)  # 2
 
 argparser.add_argument('--seed', type=int, default=0)
 argparser.add_argument('--device', type=str, default='cuda:0')
-argparser.add_argument('--hashcode', type=str, default='000000')
+argparser.add_argument('--hashcode', type=str, default='100000')
 argparser.add_argument('--idx', type=int, default=8)
-argparser.add_argument('--train_epoch', type=int, default=5)
 argparser.add_argument('--itermax', type=int, default=2500)
 argparser.add_argument('--scalefac', type=float, default=7.0)
 argparser.add_argument('--outtype', type=str, default='sig')
@@ -169,6 +169,8 @@ n_test_node = sum(map(lambda x: x[0].number_of_nodes(), test_list_tuple_graph))
 
 print('##### MODEL #####')
 in_node_feats = train_list_tuple_graph[0][1].nodes['node'].data['hv'].shape[1]
+if args.grid_feats == 0:
+    in_node_feats -= 6
 in_net_feats = train_list_tuple_graph[0][1].nodes['net'].data['hv'].shape[1]
 in_pin_feats = train_list_tuple_graph[0][1].edges['pinned'].data['he'].shape[1]
 model = HyperGNN2D(
@@ -187,7 +189,7 @@ print(f'# of parameters: {n_param}')
 
 loss_f = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=args.lr_decay)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=(1 - args.lr_decay))
 
 LOG_DIR = f'log/{args.test}'
 if not os.path.isdir(LOG_DIR):
@@ -213,7 +215,7 @@ for epoch in range(0, args.epochs + 1):
                 homo_graph, hetero_graph, grid_graphs = to_device(homo_graph, hetero_graph, grid_graphs)
                 optimizer.zero_grad()
                 pred = model.forward(
-                    in_node_feat=hetero_graph.nodes['node'].data['hv'],
+                    in_node_feat=hetero_graph.nodes['node'].data['hv'][:, [0, 1, 2, 6, 7, 8]] if args.grid_feats == 0 else hetero_graph.nodes['node'].data['hv'],
                     in_net_feat=hetero_graph.nodes['net'].data['hv'],
                     in_pin_feat=hetero_graph.edges['pinned'].data['he'],
                     node_net_graph=hetero_graph,
@@ -244,7 +246,7 @@ for epoch in range(0, args.epochs + 1):
                 # print(hmg.num_nodes(), hmg.num_edges())
                 # print([(gg.num_nodes(), gg.num_edges()) for gg in ggs])
                 prd = model.forward(
-                    in_node_feat=htg.nodes['node'].data['hv'],
+                    in_node_feat=htg.nodes['node'].data['hv'][:, [0, 1, 2, 6, 7, 8]] if args.grid_feats == 0 else htg.nodes['node'].data['hv'],
                     in_net_feat=htg.nodes['net'].data['hv'],
                     in_pin_feat=htg.edges['pinned'].data['he'],
                     node_net_graph=htg,

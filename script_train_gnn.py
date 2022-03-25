@@ -85,10 +85,10 @@ def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name
 argparser = argparse.ArgumentParser("Training")
 argparser.add_argument('--name', type=str, default='GAT')
 argparser.add_argument('--test', type=str, default='superblue19')
-argparser.add_argument('--epochs', type=int, default=100)
+argparser.add_argument('--epochs', type=int, default=20)
 argparser.add_argument('--lr', type=int, default=1e-3)
 argparser.add_argument('--weight_decay', type=int, default=2e-5)
-argparser.add_argument('--lr_decay', type=int, default=0.98)
+argparser.add_argument('--lr_decay', type=int, default=1e-1)
 
 argparser.add_argument('--graph_type', type=str, default='GAT')
 argparser.add_argument('--architecture', type=str, default='400,320')
@@ -97,7 +97,7 @@ argparser.add_argument('--heads', type=str, default='1')
 
 argparser.add_argument('--seed', type=int, default=0)
 argparser.add_argument('--device', type=str, default='cuda:0')
-argparser.add_argument('--hashcode', type=str, default='000000')
+argparser.add_argument('--hashcode', type=str, default='100000')
 argparser.add_argument('--logic_features', type=bool, default=True)
 argparser.add_argument('--idx', type=int, default=8)
 argparser.add_argument('--train_epoch', type=int, default=5)
@@ -127,7 +127,7 @@ else:
 assert args.graph_type in ['GCN', 'SAGE', 'GAT']
 
 if args.logic_features:
-    nfeats = 6
+    nfeats = 3
 else:
     nfeats = 7
 
@@ -189,7 +189,7 @@ print(f'# of parameters: {n_param}')
 
 loss_f = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=args.lr_decay)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=(1 - args.lr_decay))
 
 LOG_DIR = f'log/{args.test}'
 if not os.path.isdir(LOG_DIR):
@@ -214,7 +214,7 @@ for epoch in range(0, args.epochs + 1):
                 optimizer.zero_grad()
                 pred = model.wholeforward(
                     g=homo_graph,
-                    x=homo_graph.ndata['feat'] if args.logic_features
+                    x=homo_graph.ndata['feat'][:, [0, 1, 2, 6, 7, 8]] if args.logic_features
                     else torch.cat([homo_graph.ndata['feat'], homo_graph.ndata['pos']], dim=-1)
                 )
                 batch_labels = homo_graph.ndata['label']
@@ -238,7 +238,7 @@ for epoch in range(0, args.epochs + 1):
                 hmg, _, _ = to_device(hmg, htg, ggs)
                 prd = model.wholeforward(
                     g=hmg,
-                    x=hmg.ndata['feat'] if args.logic_features
+                    x=hmg.ndata['feat'][:, [0, 1, 2, 6, 7, 8]] if args.logic_features
                     else torch.cat([hmg.ndata['feat'], hmg.ndata['pos']], dim=-1)
                 )
                 output_labels = hmg.ndata['label']
