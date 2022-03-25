@@ -17,7 +17,7 @@ EVAL_IMAGE = 'eval'
 
 def generate_rgb_init(h_capacity: np.ndarray, v_capacity: np.ndarray,
                       h_net_density: np.ndarray, v_net_density: np.ndarray,
-                      pin_density: np.ndarray, labels: np.ndarray
+                      pin_density: np.ndarray, labels: np.ndarray, node_density: np.ndarray
                       ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     len_x = h_capacity.shape[0]
     len_y = h_capacity.shape[1]
@@ -32,11 +32,10 @@ def generate_rgb_init(h_capacity: np.ndarray, v_capacity: np.ndarray,
     r_channel = np.zeros(shape=[len_x * 2, len_y * 2], dtype=np.float)
     g_channel = np.zeros_like(r_channel)
     b_channel = np.zeros_like(r_channel)
+    grid_mask = np.zeros_like(r_channel)
 
     r_channel[::2, ::2] = labels
-    r_channel[1::2, ::2] = labels
-    r_channel[::2, 1::2] = labels
-    r_channel[1::2, 1::2] = labels
+    r_channel[1::2, ::2] = node_density
     g_channel[1::2, ::2] = h_capacity + h_net_density * scale
     b_channel[1::2, ::2] = h_capacity
     g_channel[::2, 1::2] = v_capacity + v_net_density * scale
@@ -85,16 +84,18 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
     r_channel, g_channel, b_channel = generate_rgb_init(
         h_capacity=h_capacity, v_capacity=v_capacity,
         h_net_density=h_net_density, v_net_density=v_net_density,
-        pin_density=pin_density, labels=labels
+        pin_density=pin_density, labels=labels, node_density=node_density
     )
     # print(len_x, len_y)
     # print(np.max(xdata) / bin_x, np.max(ydata) / bin_y)
-    print(np.max(h_capacity))
-    print(np.max(h_net_density))
-    print(np.max(pin_density))
-    print(np.max(r_channel))
-    print(np.max(g_channel))
-    print(np.max(b_channel))
+    print('\tmax h_capacity:', np.max(h_capacity))
+    print('\tmax h_net_density:', np.max(h_net_density))
+    print('\tmax pin_density:', np.max(pin_density))
+    print('\tmax red:', np.max(r_channel[::2, ::2]))
+    print('\tmax green:', np.max(g_channel))
+    print('\tmax blue:', np.max(b_channel))
+    print('\tnode density norm:', f'{np.sum(node_density > 0)} / {len_x * len_y}')
+    print('\tmask:', f'{np.sum(r_channel[1::2, ::2] > 0)} / {len_x * len_y}')
     # print(pin_density)
 
     im1 = Image.new('RGB', (len_x, len_y))

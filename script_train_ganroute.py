@@ -177,7 +177,7 @@ for epoch in range(0, args.epochs + 1):
 
     def evaluate(data_loader: DataLoader, set_name, n_sample, single_net=False):
         print(f'\tEvaluate {set_name}:')
-        output_data = np.zeros((n_sample * 32 * 32, 2))
+        output_data = np.zeros((n_sample * 32 * 32, 3))
         p = 0
         with torch.no_grad():
             for i, (batch_output_image, _) in enumerate(data_loader):
@@ -187,13 +187,17 @@ for epoch in range(0, args.epochs + 1):
                 batch_pred_image = generator(batch_input_image)
                 output_labels = batch_output_image[:, 0, ::2, ::2]
                 output_predictions = batch_pred_image[:, 0, ::2, ::2]
+                output_grid_mask = batch_output_image[:, 0, 1::2, ::2]
                 tgt = output_labels.cpu().data.numpy().flatten()
                 prd = output_predictions.cpu().data.numpy().flatten()
+                mask = output_grid_mask.cpu().data.numpy().flatten()
                 ln = len(tgt)
-                output_data[p:p + ln, 0], output_data[p:p + ln, 1] = tgt, prd
+                output_data[p:p + ln, 0], output_data[p:p + ln, 1], output_data[p:p + ln, 1] = tgt, prd, mask
                 p += ln
         output_data = output_data[:p, :]
         printout(output_data[:, 0], output_data[:, 1], "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
+        printout(output_data[output_data[:, 2] > 0, 0], output_data[output_data[:, 2] > 0, 1],
+                 "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
 
 
     t0 = time()
