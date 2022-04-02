@@ -35,6 +35,7 @@ def generate_rgb_init(h_capacity: np.ndarray, v_capacity: np.ndarray,
     grid_mask = np.zeros_like(r_channel)
 
     r_channel[::2, ::2] = labels
+    r_channel[1::2, 1::2] = labels
     r_channel[1::2, ::2] = node_density
     g_channel[1::2, ::2] = h_capacity + h_net_density * scale
     b_channel[1::2, ::2] = h_capacity

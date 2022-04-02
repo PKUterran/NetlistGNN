@@ -187,17 +187,17 @@ for epoch in range(0, args.epochs + 1):
                 batch_pred_image = generator(batch_input_image)
                 output_labels = batch_output_image[:, 0, ::2, ::2]
                 output_predictions = batch_pred_image[:, 0, ::2, ::2]
-                output_grid_mask = batch_output_image[:, 0, 1::2, ::2]
+                output_grid_mask = batch_output_image[:, 0, ::2, 1::2]
                 tgt = output_labels.cpu().data.numpy().flatten()
                 prd = output_predictions.cpu().data.numpy().flatten()
                 mask = output_grid_mask.cpu().data.numpy().flatten()
                 ln = len(tgt)
-                output_data[p:p + ln, 0], output_data[p:p + ln, 1], output_data[p:p + ln, 1] = tgt, prd, mask
+                output_data[p:p + ln, 0], output_data[p:p + ln, 1], output_data[p:p + ln, 2] = tgt, prd, mask
                 p += ln
         output_data = output_data[:p, :]
         printout(output_data[:, 0], output_data[:, 1], "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
         printout(output_data[output_data[:, 2] > 0, 0], output_data[output_data[:, 2] > 0, 1],
-                 "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
+                     "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
 
 
     t0 = time()
@@ -209,7 +209,7 @@ for epoch in range(0, args.epochs + 1):
 
     t2 = time()
     evaluate(train_loader, 'train_', n_train_sample)
-    evaluate(test_loader, 'test_', n_test_sample)
+    evaluate(test_loader, 'test_', n_test_sample, single_net=True)
     print("\tinference time", time() - t2)
     logs[-1].update({'eval_time': time() - t2})
     with open(f'{LOG_DIR}/{args.name}.json', 'w+') as fp:

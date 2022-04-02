@@ -6,22 +6,38 @@ from dgl.nn.pytorch import NNConv, SAGEConv, GATConv, HeteroGraphConv, GraphConv
 from typing import Tuple, Dict, Any, List
 
 
-class NodeNetGNN(nn.Module):
+class NodeNetGNN_2(nn.Module):
     def __init__(self, hidden_node_feats: int, hidden_net_feats: int, hidden_pin_feats: int,
-                 out_node_feats: int, out_net_feats: int):
-        super(NodeNetGNN, self).__init__()
-        self.lin = nn.Linear(hidden_pin_feats, hidden_net_feats * out_node_feats)
+                 out_node_feats: int, out_net_feats: int, use_edge_attr=True):
+        super(NodeNetGNN_2, self).__init__()
+        self.use_edge_attr = use_edge_attr
+#         self.lin1_1 = nn.Linear(hidden_pin_feats, hidden_node_feats * out_net_feats)
+#         self.lin1_2 = nn.Linear(hidden_pin_feats, hidden_net_feats * out_node_feats)
+#         self.lin2_1 = nn.Linear(hidden_pin_feats, hidden_node_feats * out_net_feats)
+        self.lin2_2 = nn.Linear(hidden_pin_feats, hidden_net_feats * out_node_feats)
 
-        def edge_func(efeat):
-            return self.lin(efeat)
+#         def edge_func1_1(efeat):
+#             return self.lin1_1(efeat)
+        
+#         def edge_func1_2(efeat):
+#             return self.lin1_2(efeat)
+        
+#         def edge_func2_1(efeat):
+#             return self.lin2_1(efeat)
+        
+        def edge_func2_2(efeat):
+            return self.lin2_2(efeat)
 
         self.hetero_conv_1 = HeteroGraphConv({
-            'pins': GraphConv(in_feats=hidden_node_feats, out_feats=hidden_net_feats),
-            'pinned': GraphConv(in_feats=hidden_net_feats, out_feats=hidden_node_feats),
+#             'pins': NNConv(in_feats=hidden_node_feats, out_feats=out_net_feats, edge_func=edge_func1_1) if use_edge_attr else GraphConv(in_feats=hidden_node_feats, out_feats=out_net_feats),
+#             'pinned': NNConv(in_feats=hidden_net_feats, out_feats=out_node_feats, edge_func=edge_func1_2) if use_edge_attr else GraphConv(in_feats=hidden_net_feats, out_feats=out_node_feats),
+            'pins': GraphConv(in_feats=hidden_node_feats, out_feats=out_net_feats),
+            'pinned': GraphConv(in_feats=hidden_net_feats, out_feats=out_node_feats),
         })
         self.hetero_conv_2 = HeteroGraphConv({
+#             'pins': NNConv(in_feats=hidden_node_feats, out_feats=out_net_feats, edge_func=edge_func2_1) if use_edge_attr else GraphConv(in_feats=hidden_node_feats, out_feats=out_net_feats),
             'pins': GraphConv(in_feats=hidden_node_feats, out_feats=out_net_feats),
-            'pinned': NNConv(in_feats=hidden_net_feats, out_feats=out_node_feats, edge_func=edge_func),
+            'pinned': NNConv(in_feats=hidden_net_feats, out_feats=out_node_feats, edge_func=edge_func2_2) if use_edge_attr else GraphConv(in_feats=hidden_net_feats, out_feats=out_node_feats),
         })
 
     def forward(self, g: dgl.DGLHeteroGraph, node_feat: torch.Tensor, pin_feat: torch.Tensor, net_feat: torch.Tensor
@@ -30,10 +46,51 @@ class NodeNetGNN(nn.Module):
             'node': node_feat,
             'net': net_feat,
         }
-        h = self.hetero_conv_1.forward(g, h)
-        h = self.hetero_conv_2.forward(g, h, mod_kwargs={'pinned': {'efeat': pin_feat}})
+        if self.use_edge_attr:
+            h = self.hetero_conv_1.forward(g, h)
+            h = self.hetero_conv_2.forward(g, h, mod_kwargs={'pinned': {'efeat': pin_feat}})
+        else:
+            h = self.hetero_conv_1.forward(g, h)
+            h = self.hetero_conv_2.forward(g, h)
         return h['node'], h['net']
 
+
+class NodeNetGNN(nn.Module):
+    def __init__(self, hidden_node_feats: int, hidden_net_feats: int, hidden_pin_feats: int,
+                 out_node_feats: int, out_net_feats: int, use_edge_attr=True):
+        super(NodeNetGNN, self).__init__()
+        self.use_edge_attr = use_edge_attr
+#         self.lin1 = nn.Linear(hidden_pin_feats, hidden_node_feats * out_net_feats)
+        self.lin2 = nn.Linear(hidden_pin_feats, hidden_net_feats * out_node_feats)
+
+#         def edge_func1(efeat):
+#             return self.lin1(efeat)
+        
+        def edge_func2(efeat):
+            return self.lin2(efeat)
+
+        self.hetero_conv = HeteroGraphConv({
+            'pins': GraphConv(in_feats=hidden_node_feats, out_feats=out_net_feats),
+#             'pins': NNConv(in_feats=hidden_node_feats, out_feats=out_net_feats, edge_func=edge_func1) if use_edge_attr else GraphConv(in_feats=hidden_node_feats, out_feats=out_net_feats),
+#             'pinned': GraphConv(in_feats=hidden_net_feats, out_feats=out_node_feats),
+            'pinned': NNConv(in_feats=hidden_net_feats, out_feats=out_node_feats, edge_func=edge_func2) if use_edge_attr else GraphConv(in_feats=hidden_net_feats, out_feats=out_node_feats),
+        })
+
+    def forward(self, g: dgl.DGLHeteroGraph, node_feat: torch.Tensor, pin_feat: torch.Tensor, net_feat: torch.Tensor
+                ) -> Tuple[torch.Tensor, torch.Tensor]:
+        h = {
+            'node': node_feat,
+            'net': net_feat,
+        }
+        if self.use_edge_attr:
+            h = self.hetero_conv.forward(g, h, mod_kwargs={
+#                 'pins': {'efeat': pin_feat}, 
+                'pinned': {'efeat': pin_feat},
+            })
+        else:
+            h = self.hetero_conv.forward(g, h)
+        return h['node'], h['net']
+    
 
 class GridGNN(nn.Module):
     def __init__(self, in_feats: int, out_feats: int, num_heads: int):

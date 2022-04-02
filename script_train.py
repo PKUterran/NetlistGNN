@@ -85,18 +85,18 @@ def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name
 argparser = argparse.ArgumentParser("Training")
 argparser.add_argument('--name', type=str, default='main')
 argparser.add_argument('--test', type=str, default='superblue19')
-argparser.add_argument('--epochs', type=int, default=20)
+argparser.add_argument('--epochs', type=int, default=10)
 argparser.add_argument('--train_epoch', type=int, default=5)
 argparser.add_argument('--batch', type=int, default=1)
 argparser.add_argument('--lr', type=float, default=1e-3)
-argparser.add_argument('--weight_decay', type=float, default=2e-5)
+argparser.add_argument('--weight_decay', type=float, default=2e-4)
 argparser.add_argument('--lr_decay', type=float, default=1e-1)
 
 argparser.add_argument('--layers', type=int, default=2)  # 2
-argparser.add_argument('--node_feats', type=int, default=64)  # 128
+argparser.add_argument('--node_feats', type=int, default=64)  # 64
 argparser.add_argument('--net_feats', type=int, default=128)  # 128
-argparser.add_argument('--pin_feats', type=int, default=4)  # 4
-argparser.add_argument('--grid_feats', type=int, default=16)  # 32
+argparser.add_argument('--pin_feats', type=int, default=16)  # 16
+argparser.add_argument('--grid_feats', type=int, default=16)  # 16
 argparser.add_argument('--heads', type=int, default=2)  # 2
 
 argparser.add_argument('--seed', type=int, default=0)
