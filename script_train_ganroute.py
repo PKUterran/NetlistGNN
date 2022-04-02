@@ -19,7 +19,6 @@ from net.GanRoute import ImageAutoEncoder, Discriminator
 
 import warnings
 
-# torch.autograd.set_detect_anomaly(True)
 warnings.filterwarnings("ignore")
 
 logs: List[Dict[str, Any]] = []
