@@ -12,8 +12,8 @@ from scipy.stats import pearsonr, spearmanr, kendalltau
 import torch
 import torch.nn as nn
 
-from data.load_data import load_data
-from net.NetlistGNN import NetlistGNN
+from data.load_data_old import load_data
+from net.HyperGNN2D import HyperGNN2D
 
 import warnings
 
@@ -125,6 +125,9 @@ config = {
     'N_LAYER': args.layers,
     'NODE_FEATS': args.node_feats,
     'NET_FEATS': args.net_feats,
+    'GRID_FEATS': args.grid_feats,
+    'GRID_HEADS': args.heads,
+    'GRID_CHANNELS': 4,
     'PIN_FEATS': args.pin_feats,
 }
 
@@ -170,7 +173,7 @@ if args.grid_feats == 0:
     in_node_feats -= 6
 in_net_feats = train_list_tuple_graph[0][1].nodes['net'].data['hv'].shape[1]
 in_pin_feats = train_list_tuple_graph[0][1].edges['pinned'].data['he'].shape[1]
-model = NetlistGNN(
+model = HyperGNN2D(
     in_node_feats=in_node_feats,
     in_net_feats=in_net_feats,
     in_pin_feats=in_pin_feats,
@@ -193,58 +196,64 @@ if not os.path.isdir(LOG_DIR):
     os.mkdir(LOG_DIR)
 
 
-def to_device(a, b):
-    return a.to(device), b.to(device)
+def to_device(a, b, c):
+    return a.to(device), b.to(device), [ci.to(device) for ci in c]
 
 
 for epoch in range(0, args.epochs + 1):
     print(f'##### EPOCH {epoch} #####')
     print(f'\tLearning rate: {optimizer.state_dict()["param_groups"][0]["lr"]}')
     logs.append({'epoch': epoch})
-
-    def train(ltg):
+    t0 = time()
+    if epoch:
         model.train()
-        t1 = time()
-        losses = []
-        n_tuples = len(ltg)
-        for j, (homo_graph, hetero_graph) in enumerate(ltg):
-            homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
-            optimizer.zero_grad()
-            pred = model.forward(
-                in_node_feat=hetero_graph.nodes['node'].data['hv'][:, [0, 1, 2, 6, 7, 8]]
-                if args.grid_feats == 0 else hetero_graph.nodes['node'].data['hv'],
-                in_net_feat=hetero_graph.nodes['net'].data['hv'],
-                in_pin_feat=hetero_graph.edges['pinned'].data['he'],
-                node_net_graph=hetero_graph,
-            ) * args.scalefac
-            batch_labels = homo_graph.ndata['label']
-            loss = loss_f(pred.view(-1), batch_labels.float())
-            losses.append(loss)
-            if len(losses) >= args.batch or j == n_tuples - 1:
-                sum(losses).backward()
-                optimizer.step()
-                losses.clear()
-        scheduler.step()
-        print(f"\tTraining time per epoch: {time() - t1}")
+        for _ in range(args.train_epoch):
+            t1 = time()
+            losses = []
+            n_tuples = len(train_list_tuple_graph)
+            for j, (homo_graph, hetero_graph, grid_graphs) in enumerate(train_list_tuple_graph):
+                homo_graph, hetero_graph, grid_graphs = to_device(homo_graph, hetero_graph, grid_graphs)
+                optimizer.zero_grad()
+                pred = model.forward(
+                    in_node_feat=hetero_graph.nodes['node'].data['hv'][:, [0, 1, 2, 6, 7, 8]] if args.grid_feats == 0 else hetero_graph.nodes['node'].data['hv'],
+                    in_net_feat=hetero_graph.nodes['net'].data['hv'],
+                    in_pin_feat=hetero_graph.edges['pinned'].data['he'],
+                    node_net_graph=hetero_graph,
+                    list_grid_graph=grid_graphs,
+                ) * args.scalefac
+                batch_labels = homo_graph.ndata['label']
+                loss = loss_f(pred.view(-1), batch_labels.float())
+                losses.append(loss)
+                if len(losses) >= args.batch or j == n_tuples - 1:
+                    sum(losses).backward()
+                    optimizer.step()
+                    losses.clear()
+            scheduler.step()
+            print(f"\tTraining time per epoch: {time() - t1}")
+    logs[-1].update({'train_time': time() - t0})
+
+    t2 = time()
+    model.eval()
+
 
     def evaluate(ltg, set_name, n_node, single_net=False):
-        model.eval()
         print(f'\tEvaluate {set_name}:')
         outputdata = np.zeros((n_node, 4))
         p = 0
         with torch.no_grad():
-            for j, (homo_graph, hetero_graph) in enumerate(ltg):
-                homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
+            for z, (hmg, htg, ggs) in enumerate(ltg):
+                hmg, htg, ggs = to_device(hmg, htg, ggs)
                 # print(hmg.num_nodes(), hmg.num_edges())
+                # print([(gg.num_nodes(), gg.num_edges()) for gg in ggs])
                 prd = model.forward(
-                    in_node_feat=hetero_graph.nodes['node'].data['hv'][:, [0, 1, 2, 6, 7, 8]]
-                    if args.grid_feats == 0 else hetero_graph.nodes['node'].data['hv'],
-                    in_net_feat=hetero_graph.nodes['net'].data['hv'],
-                    in_pin_feat=hetero_graph.edges['pinned'].data['he'],
-                    node_net_graph=hetero_graph,
+                    in_node_feat=htg.nodes['node'].data['hv'][:, [0, 1, 2, 6, 7, 8]] if args.grid_feats == 0 else htg.nodes['node'].data['hv'],
+                    in_net_feat=htg.nodes['net'].data['hv'],
+                    in_pin_feat=htg.edges['pinned'].data['he'],
+                    node_net_graph=htg,
+                    list_grid_graph=ggs,
                 ) * args.scalefac
-                output_labels = homo_graph.ndata['label']
-                output_pos = (homo_graph.ndata['pos'].cpu().data.numpy())
+                output_labels = hmg.ndata['label']
+                output_pos = (hmg.ndata['pos'].cpu().data.numpy())
                 output_predictions = prd
                 tgt = output_labels.cpu().data.numpy().flatten()
                 prd = output_predictions.cpu().data.numpy().flatten()
@@ -259,12 +268,7 @@ for epoch in range(0, args.epochs + 1):
                                 set_name=set_name)
         printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
 
-    t0 = time()
-    if epoch:
-        for _ in range(args.train_epoch):
-            train(train_list_tuple_graph)
-    logs[-1].update({'train_time': time() - t0})
-    t2 = time()
+
     evaluate(train_list_tuple_graph, 'train_', n_train_node)
     evaluate(test_list_tuple_graph, 'test_', n_test_node, single_net=True)
     # exit(123)

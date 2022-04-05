@@ -84,8 +84,8 @@ def feature_grid2node(grid_feature: np.ndarray, bin_x, bin_y, xdata, ydata) -> n
 
 def load_data(dir_name: str, given_iter, index: int, hashcode: str,
               graph_scale: int = 1000, bin_x: float = 32, bin_y: float = 40, force_save=False, use_tqdm=True
-              ) -> List[Tuple[dgl.DGLGraph, dgl.DGLHeteroGraph, List[dgl.DGLGraph]]]:
-    file_path = f'{dir_name}/graphs_{given_iter}.pickle'
+              ) -> List[Tuple[dgl.DGLGraph, dgl.DGLHeteroGraph]]:
+    file_path = f'{dir_name}/hetero_{given_iter}.pickle'
     if os.path.exists(file_path) and not force_save:
         with open(file_path, 'rb') as fp:
             list_tuple_graph = pickle.load(fp)
@@ -139,8 +139,8 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     list_homo_graph = [dgl.node_subgraph(homo_graph, partition) for partition in partition_list]
     print('\thomo_graph generated')
 
-    # grid_graph
-    grid_graphs = []
+    # hetero_graph
+    us4, vs4 = [], []
     for x_offset, y_offset in [(0, 0), (bin_x / 2, 0), (0, bin_y / 2), (bin_x / 2, bin_y / 2)]:
         box_node = {}
         iter_sp = tqdm.tqdm(enumerate(zip(sizdata_x, sizdata_y, xdata, ydata)), total=n_node) \
@@ -158,20 +158,15 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
                 for y in range(y_1, y_2 + 1):
                     box_node.setdefault(f'{x}-{y}', []).append(i)
         us, vs = [], []
-        # print([len(nodes) for nodes in box_node.values()])
-        # exit(123)
         for nodes in box_node.values():
             us_, vs_ = node_pairs_among(nodes, max_cap=5)
             us.extend(us_)
             vs.extend(vs_)
-        grid_graph = add_self_loop(dgl.graph((us, vs), num_nodes=n_node))
-        grid_graphs.append(grid_graph)
+        us4.extend(us)
+        vs4.extend(vs)
 
-    list_grid_graphs = [[dgl.node_subgraph(grid_graph, partition) for grid_graph in grid_graphs]
-                        for partition in partition_list]
-    print('\tgrid_graphs generated')
+    print('\thetero_graph generated 1/2')
 
-    # hetero_graph
     us, vs, he = [], [], []
     net_degree = []
     for net, list_node_feats in edge.items():
@@ -183,6 +178,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     net_hv = torch.unsqueeze(torch.tensor(net_degree, dtype=torch.float32), dim=-1)
 
     hetero_graph = dgl.heterograph({
+        ('node', 'near', 'node'): (us4, vs4),
         ('node', 'pins', 'net'): (us, vs),
         ('net', 'pinned', 'node'): (vs, us),
     }, num_nodes_dict={'node': n_node, 'net': len(net_degree)})
@@ -201,9 +197,9 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
                 keep_net_ids.add(net_id)
         part_hetero_graph = dgl.node_subgraph(hetero_graph, nodes={'node': partition, 'net': list(keep_net_ids)})
         list_hetero_graph.append(part_hetero_graph)
-    print('\thetero_graph generated')
+    print('\thetero_graph generated 2/2')
 
-    list_tuple_graph = list(zip(list_homo_graph, list_hetero_graph, list_grid_graphs))
+    list_tuple_graph = list(zip(list_homo_graph, list_hetero_graph))
     with open(file_path, 'wb+') as fp:
         pickle.dump(list_tuple_graph, fp)
     return list_tuple_graph

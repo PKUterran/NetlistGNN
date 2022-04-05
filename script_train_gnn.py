@@ -195,54 +195,44 @@ LOG_DIR = f'log/{args.test}'
 if not os.path.isdir(LOG_DIR):
     os.mkdir(LOG_DIR)
 
-
-def to_device(a, b, c):
-    return a.to(device), b.to(device), [ci.to(device) for ci in c]
-
-
 for epoch in range(0, args.epochs + 1):
     print(f'##### EPOCH {epoch} #####')
     print(f'\tLearning rate: {optimizer.state_dict()["param_groups"][0]["lr"]}')
     logs.append({'epoch': epoch})
-    t0 = time()
-    if epoch:
+
+    def train(ltg):
         model.train()
-        for _ in range(args.train_epoch):
-            t1 = time()
-            for j, (homo_graph, hetero_graph, grid_graphs) in enumerate(train_list_tuple_graph):
-                homo_graph, _, _ = to_device(homo_graph, hetero_graph, grid_graphs)
-                optimizer.zero_grad()
-                pred = model.wholeforward(
-                    g=homo_graph,
-                    x=homo_graph.ndata['feat'][:, [0, 1, 2, 6, 7, 8]] if args.logic_features
-                    else torch.cat([homo_graph.ndata['feat'], homo_graph.ndata['pos']], dim=-1)
-                )
-                batch_labels = homo_graph.ndata['label']
-                loss = loss_f(pred.view(-1), batch_labels.float())
-                loss.backward()
-                optimizer.step()
-            scheduler.step()
-            print(f"\tTraining time per epoch: {time() - t1}")
-    logs[-1].update({'train_time': time() - t0})
-
-    t2 = time()
-    model.eval()
-
+        t1 = time()
+        for j, (homo_graph, _) in enumerate(ltg):
+            homo_graph = homo_graph.to(device)
+            optimizer.zero_grad()
+            pred = model.wholeforward(
+                g=homo_graph,
+                x=homo_graph.ndata['feat'][:, [0, 1, 2, 6, 7, 8]] if args.logic_features
+                else torch.cat([homo_graph.ndata['feat'], homo_graph.ndata['pos']], dim=-1)
+            )
+            batch_labels = homo_graph.ndata['label']
+            loss = loss_f(pred.view(-1), batch_labels.float())
+            loss.backward()
+            optimizer.step()
+        scheduler.step()
+        print(f"\tTraining time per epoch: {time() - t1}")
 
     def evaluate(ltg, set_name, n_node, single_net=False):
+        model.eval()
         print(f'\tEvaluate {set_name}:')
         outputdata = np.zeros((n_node, 4))
         p = 0
         with torch.no_grad():
-            for z, (hmg, htg, ggs) in enumerate(ltg):
-                hmg, _, _ = to_device(hmg, htg, ggs)
+            for j, (homo_graph, _) in enumerate(ltg):
+                homo_graph = homo_graph.to(device)
                 prd = model.wholeforward(
-                    g=hmg,
-                    x=hmg.ndata['feat'][:, [0, 1, 2, 6, 7, 8]] if args.logic_features
-                    else torch.cat([hmg.ndata['feat'], hmg.ndata['pos']], dim=-1)
+                    g=homo_graph,
+                    x=homo_graph.ndata['feat'][:, [0, 1, 2, 6, 7, 8]] if args.logic_features
+                    else torch.cat([homo_graph.ndata['feat'], homo_graph.ndata['pos']], dim=-1)
                 )
-                output_labels = hmg.ndata['label']
-                output_pos = (hmg.ndata['pos'].cpu().data.numpy())
+                output_labels = homo_graph.ndata['label']
+                output_pos = (homo_graph.ndata['pos'].cpu().data.numpy())
                 output_predictions = prd
                 tgt = output_labels.cpu().data.numpy().flatten()
                 prd = output_predictions.cpu().data.numpy().flatten()
@@ -257,7 +247,14 @@ for epoch in range(0, args.epochs + 1):
                                 set_name=set_name)
         printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
 
+    t0 = time()
+    if epoch:
+        model.train()
+        for _ in range(args.train_epoch):
+            train(train_list_tuple_graph)
+    logs[-1].update({'train_time': time() - t0})
 
+    t2 = time()
     evaluate(train_list_tuple_graph, 'train_', n_train_node)
     evaluate(test_list_tuple_graph, 'test_', n_test_node, single_net=True)
     print("\tinference time", time() - t2)

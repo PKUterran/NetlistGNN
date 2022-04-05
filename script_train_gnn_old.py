@@ -12,8 +12,8 @@ from scipy.stats import pearsonr, spearmanr, kendalltau
 import torch
 import torch.nn as nn
 
-from data.load_data import load_data
-from net.NetlistGNN import NetlistGNN
+from data.load_data_old import load_data
+from net.naive import TraditionalGNNModel
 
 import warnings
 
@@ -83,26 +83,24 @@ def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name
 
 
 argparser = argparse.ArgumentParser("Training")
-argparser.add_argument('--name', type=str, default='main')
+argparser.add_argument('--name', type=str, default='GAT')
 argparser.add_argument('--test', type=str, default='superblue19')
-argparser.add_argument('--epochs', type=int, default=10)
-argparser.add_argument('--train_epoch', type=int, default=5)
-argparser.add_argument('--batch', type=int, default=1)
-argparser.add_argument('--lr', type=float, default=1e-3)
-argparser.add_argument('--weight_decay', type=float, default=2e-4)
-argparser.add_argument('--lr_decay', type=float, default=1e-1)
+argparser.add_argument('--epochs', type=int, default=20)
+argparser.add_argument('--lr', type=int, default=1e-3)
+argparser.add_argument('--weight_decay', type=int, default=2e-5)
+argparser.add_argument('--lr_decay', type=int, default=1e-1)
 
-argparser.add_argument('--layers', type=int, default=2)  # 2
-argparser.add_argument('--node_feats', type=int, default=64)  # 64
-argparser.add_argument('--net_feats', type=int, default=128)  # 128
-argparser.add_argument('--pin_feats', type=int, default=16)  # 16
-argparser.add_argument('--grid_feats', type=int, default=16)  # 16
-argparser.add_argument('--heads', type=int, default=2)  # 2
+argparser.add_argument('--graph_type', type=str, default='GAT')
+argparser.add_argument('--architecture', type=str, default='400,320')
+argparser.add_argument('--degdim', type=int, default=0)
+argparser.add_argument('--heads', type=str, default='1')
 
 argparser.add_argument('--seed', type=int, default=0)
 argparser.add_argument('--device', type=str, default='cuda:0')
 argparser.add_argument('--hashcode', type=str, default='100000')
+argparser.add_argument('--logic_features', type=bool, default=True)
 argparser.add_argument('--idx', type=int, default=8)
+argparser.add_argument('--train_epoch', type=int, default=5)
 argparser.add_argument('--itermax', type=int, default=2500)
 argparser.add_argument('--scalefac', type=float, default=7.0)
 argparser.add_argument('--outtype', type=str, default='sig')
@@ -121,12 +119,20 @@ if not args.device == 'cpu':
     torch.cuda.set_device(device)
     torch.cuda.manual_seed(seed)
 
-config = {
-    'N_LAYER': args.layers,
-    'NODE_FEATS': args.node_feats,
-    'NET_FEATS': args.net_feats,
-    'PIN_FEATS': args.pin_feats,
-}
+if ',' in args.architecture:
+    arch = list(map(int, args.architecture.split(',')))
+else:
+    arch = [(int(args.architecture))]
+
+assert args.graph_type in ['GCN', 'SAGE', 'GAT']
+
+if args.logic_features:
+    nfeats = 3
+else:
+    nfeats = 7
+
+arch.insert(0, 2 * nfeats + args.degdim)
+arch.append(1)
 
 train_dataset_names = [
     'superblue1_processed',
@@ -152,7 +158,7 @@ for dataset_name in train_dataset_names:
                                          graph_scale=args.graph_scale,
                                          bin_x=args.binx, bin_y=args.biny, force_save=False)
             train_list_tuple_graph.extend(list_tuple_graph)
-
+# exit(123)
 for dataset_name in [test_dataset_name]:
     for i in range(0, args.itermax):
         if os.path.isfile(f'data/{dataset_name}/iter_{i}_node_label_full_{args.hashcode}_.npy'):
@@ -166,17 +172,14 @@ n_test_node = sum(map(lambda x: x[0].number_of_nodes(), test_list_tuple_graph))
 
 print('##### MODEL #####')
 in_node_feats = train_list_tuple_graph[0][1].nodes['node'].data['hv'].shape[1]
-if args.grid_feats == 0:
-    in_node_feats -= 6
 in_net_feats = train_list_tuple_graph[0][1].nodes['net'].data['hv'].shape[1]
 in_pin_feats = train_list_tuple_graph[0][1].edges['pinned'].data['he'].shape[1]
-model = NetlistGNN(
-    in_node_feats=in_node_feats,
-    in_net_feats=in_net_feats,
-    in_pin_feats=in_pin_feats,
-    n_target=1,
+model = TraditionalGNNModel(
+    model_type=args.graph_type,
+    arch_detail=arch,
+    heads=int(args.heads),
     activation=args.outtype,
-    config=config,
+    scalefac=args.scalefac,
 ).to(device)
 n_param = 0
 for name, param in model.named_parameters():
@@ -193,58 +196,53 @@ if not os.path.isdir(LOG_DIR):
     os.mkdir(LOG_DIR)
 
 
-def to_device(a, b):
-    return a.to(device), b.to(device)
+def to_device(a, b, c):
+    return a.to(device), b.to(device), [ci.to(device) for ci in c]
 
 
 for epoch in range(0, args.epochs + 1):
     print(f'##### EPOCH {epoch} #####')
     print(f'\tLearning rate: {optimizer.state_dict()["param_groups"][0]["lr"]}')
     logs.append({'epoch': epoch})
-
-    def train(ltg):
+    t0 = time()
+    if epoch:
         model.train()
-        t1 = time()
-        losses = []
-        n_tuples = len(ltg)
-        for j, (homo_graph, hetero_graph) in enumerate(ltg):
-            homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
-            optimizer.zero_grad()
-            pred = model.forward(
-                in_node_feat=hetero_graph.nodes['node'].data['hv'][:, [0, 1, 2, 6, 7, 8]]
-                if args.grid_feats == 0 else hetero_graph.nodes['node'].data['hv'],
-                in_net_feat=hetero_graph.nodes['net'].data['hv'],
-                in_pin_feat=hetero_graph.edges['pinned'].data['he'],
-                node_net_graph=hetero_graph,
-            ) * args.scalefac
-            batch_labels = homo_graph.ndata['label']
-            loss = loss_f(pred.view(-1), batch_labels.float())
-            losses.append(loss)
-            if len(losses) >= args.batch or j == n_tuples - 1:
-                sum(losses).backward()
+        for _ in range(args.train_epoch):
+            t1 = time()
+            for j, (homo_graph, hetero_graph, grid_graphs) in enumerate(train_list_tuple_graph):
+                homo_graph, _, _ = to_device(homo_graph, hetero_graph, grid_graphs)
+                optimizer.zero_grad()
+                pred = model.wholeforward(
+                    g=homo_graph,
+                    x=homo_graph.ndata['feat'][:, [0, 1, 2, 6, 7, 8]] if args.logic_features
+                    else torch.cat([homo_graph.ndata['feat'], homo_graph.ndata['pos']], dim=-1)
+                )
+                batch_labels = homo_graph.ndata['label']
+                loss = loss_f(pred.view(-1), batch_labels.float())
+                loss.backward()
                 optimizer.step()
-                losses.clear()
-        scheduler.step()
-        print(f"\tTraining time per epoch: {time() - t1}")
+            scheduler.step()
+            print(f"\tTraining time per epoch: {time() - t1}")
+    logs[-1].update({'train_time': time() - t0})
+
+    t2 = time()
+    model.eval()
+
 
     def evaluate(ltg, set_name, n_node, single_net=False):
-        model.eval()
         print(f'\tEvaluate {set_name}:')
         outputdata = np.zeros((n_node, 4))
         p = 0
         with torch.no_grad():
-            for j, (homo_graph, hetero_graph) in enumerate(ltg):
-                homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
-                # print(hmg.num_nodes(), hmg.num_edges())
-                prd = model.forward(
-                    in_node_feat=hetero_graph.nodes['node'].data['hv'][:, [0, 1, 2, 6, 7, 8]]
-                    if args.grid_feats == 0 else hetero_graph.nodes['node'].data['hv'],
-                    in_net_feat=hetero_graph.nodes['net'].data['hv'],
-                    in_pin_feat=hetero_graph.edges['pinned'].data['he'],
-                    node_net_graph=hetero_graph,
-                ) * args.scalefac
-                output_labels = homo_graph.ndata['label']
-                output_pos = (homo_graph.ndata['pos'].cpu().data.numpy())
+            for z, (hmg, htg, ggs) in enumerate(ltg):
+                hmg, _, _ = to_device(hmg, htg, ggs)
+                prd = model.wholeforward(
+                    g=hmg,
+                    x=hmg.ndata['feat'][:, [0, 1, 2, 6, 7, 8]] if args.logic_features
+                    else torch.cat([hmg.ndata['feat'], hmg.ndata['pos']], dim=-1)
+                )
+                output_labels = hmg.ndata['label']
+                output_pos = (hmg.ndata['pos'].cpu().data.numpy())
                 output_predictions = prd
                 tgt = output_labels.cpu().data.numpy().flatten()
                 prd = output_predictions.cpu().data.numpy().flatten()
@@ -259,15 +257,9 @@ for epoch in range(0, args.epochs + 1):
                                 set_name=set_name)
         printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
 
-    t0 = time()
-    if epoch:
-        for _ in range(args.train_epoch):
-            train(train_list_tuple_graph)
-    logs[-1].update({'train_time': time() - t0})
-    t2 = time()
+
     evaluate(train_list_tuple_graph, 'train_', n_train_node)
     evaluate(test_list_tuple_graph, 'test_', n_test_node, single_net=True)
-    # exit(123)
     print("\tinference time", time() - t2)
     logs[-1].update({'eval_time': time() - t2})
     with open(f'{LOG_DIR}/{args.name}.json', 'w+') as fp:
