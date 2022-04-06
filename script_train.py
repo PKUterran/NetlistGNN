@@ -6,6 +6,7 @@ from typing import List, Dict, Any
 from functools import reduce
 
 import numpy as np
+import dgl
 
 from scipy.stats import pearsonr, spearmanr, kendalltau
 
@@ -96,7 +97,7 @@ argparser.add_argument('--layers', type=int, default=2)  # 2
 argparser.add_argument('--node_feats', type=int, default=64)  # 64
 argparser.add_argument('--net_feats', type=int, default=128)  # 128
 argparser.add_argument('--pin_feats', type=int, default=16)  # 16
-argparser.add_argument('--grid_feats', type=int, default=16)  # 16
+argparser.add_argument('--topo_geom', type=str, default='both')  # default
 argparser.add_argument('--heads', type=int, default=2)  # 2
 
 argparser.add_argument('--seed', type=int, default=0)
@@ -144,6 +145,16 @@ test_dataset_name = 'superblue19_processed'
 
 train_list_tuple_graph, test_list_tuple_graph = [], []
 
+
+def fit_topo_geom(ltg):
+    ltg = [(g, dgl.add_self_loop(hg, etype='near')) for g, hg in ltg]
+    if args.topo_geom == 'topo':
+        ltg = [(g, dgl.remove_edges(hg, hg.edges('eid', etype='near'), etype='near')) for g, hg in ltg]
+    elif args.topo_geom == 'geom':
+        ltg = [(g, dgl.remove_edges(hg, hg.edges('eid', etype='pinned'), etype='pinned')) for g, hg in ltg]
+    return ltg
+
+
 for dataset_name in train_dataset_names:
     for i in range(0, args.itermax):
         if os.path.isfile(f'data/{dataset_name}/iter_{i}_node_label_full_{args.hashcode}_.npy'):
@@ -151,6 +162,7 @@ for dataset_name in train_dataset_names:
             list_tuple_graph = load_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
                                          graph_scale=args.graph_scale,
                                          bin_x=args.binx, bin_y=args.biny, force_save=False)
+            list_tuple_graph = fit_topo_geom(list_tuple_graph)
             train_list_tuple_graph.extend(list_tuple_graph)
 
 for dataset_name in [test_dataset_name]:
@@ -160,16 +172,17 @@ for dataset_name in [test_dataset_name]:
             list_tuple_graph = load_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
                                          graph_scale=args.graph_scale,
                                          bin_x=args.binx, bin_y=args.biny, force_save=False)
+            list_tuple_graph = fit_topo_geom(list_tuple_graph)
             test_list_tuple_graph.extend(list_tuple_graph)
 n_train_node = sum(map(lambda x: x[0].number_of_nodes(), train_list_tuple_graph))
 n_test_node = sum(map(lambda x: x[0].number_of_nodes(), test_list_tuple_graph))
 
 print('##### MODEL #####')
 in_node_feats = train_list_tuple_graph[0][1].nodes['node'].data['hv'].shape[1]
-if args.grid_feats == 0:
-    in_node_feats -= 6
 in_net_feats = train_list_tuple_graph[0][1].nodes['net'].data['hv'].shape[1]
 in_pin_feats = train_list_tuple_graph[0][1].edges['pinned'].data['he'].shape[1]
+if args.topo_geom == 'topo':
+    in_node_feats -= 6
 model = NetlistGNN(
     in_node_feats=in_node_feats,
     in_net_feats=in_net_feats,
@@ -212,7 +225,7 @@ for epoch in range(0, args.epochs + 1):
             optimizer.zero_grad()
             pred = model.forward(
                 in_node_feat=hetero_graph.nodes['node'].data['hv'][:, [0, 1, 2, 6, 7, 8]]
-                if args.grid_feats == 0 else hetero_graph.nodes['node'].data['hv'],
+                if args.topo_geom == 'topo' else hetero_graph.nodes['node'].data['hv'],
                 in_net_feat=hetero_graph.nodes['net'].data['hv'],
                 in_pin_feat=hetero_graph.edges['pinned'].data['he'],
                 node_net_graph=hetero_graph,
@@ -238,7 +251,7 @@ for epoch in range(0, args.epochs + 1):
                 # print(hmg.num_nodes(), hmg.num_edges())
                 prd = model.forward(
                     in_node_feat=hetero_graph.nodes['node'].data['hv'][:, [0, 1, 2, 6, 7, 8]]
-                    if args.grid_feats == 0 else hetero_graph.nodes['node'].data['hv'],
+                    if args.topo_geom == 'topo' else hetero_graph.nodes['node'].data['hv'],
                     in_net_feat=hetero_graph.nodes['net'].data['hv'],
                     in_pin_feat=hetero_graph.edges['pinned'].data['he'],
                     node_net_graph=hetero_graph,
