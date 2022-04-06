@@ -1,10 +1,7 @@
 # Ours
 python script_train.py --name hyper
-# python script_train.py --name hyper-small --node_feats 24 --net_feats 36 --pin_feats 3 --grid_feats 8 --heads 1
-# python script_train.py --name hyper-small --layers 1
-python script_train.py --name hyper-xgr-test --grid_feats 0
-python script_train.py --name hyper-xgr --grid_feats 0
-python script_train.py --name hyper-xbi --node_feats 0
+python script_train.py --name hyper-topo --topo_geom topo
+python script_train.py --name hyper-geom --topo_geom geom
 
 # GNN
 python script_train_gnn.py --name GAT --graph_type GAT --logic_features True
@@ -34,5 +31,8 @@ python script_process.py --datadir superblue14
 python script_process.py --datadir superblue16
 python script_process.py --datadir superblue19
 
-python script_train.py --name hyper-xgr-test --grid_feats 0 --node_feats 24 --net_feats 36 --pin_feats 3
-python script_train.py --name hyper-xgr-test2 --grid_feats 0 --node_feats 24 --net_feats 36 --pin_feats 3 --lr_decay 2e-2 --epochs 50 --lr 1e-4
+python script_train.py --name hyper-topo-test --topo_geom topo
+python script_train.py --name hyper-topo-test2 --topo_geom topo
+
+python script_train.py --name hyper-test --node_feats 128 --net_feats 128 --pin_feats 16
+python script_train.py --name hyper-test2 --node_feats 32 --net_feats 128 --pin_feats 16

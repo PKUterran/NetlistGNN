@@ -11,7 +11,7 @@ COLOR_SET = ['red', 'green', 'blue', 'purple', 'orange', 'black']
 
 def get_tendency(logs: List[Dict[str, Any]]) -> Dict[str, Any]:
     list_epoch = [log['epoch'] for log in logs]
-    list_train_time = [log['train_time'] for log in logs]
+    list_train_time = [log['train_time'] / 5 for log in logs]
     list_eval_time = [log['eval_time'] for log in logs]
     list_train_node_level_pearson_rho = [log['train_node_level_pearson_rho'] for log in logs]
     list_train_node_level_spearmanr_rho = [log['train_node_level_spearmanr_rho'] for log in logs]
@@ -35,6 +35,7 @@ def get_tendency(logs: List[Dict[str, Any]]) -> Dict[str, Any]:
     # list_test_grid_index_rmse = [log['test_grid_index_rmse'] for log in logs]
 
     return {
+        'time': list_train_time,
         'rmse': list_train_node_level_rmse,
         'pearson': list_test_node_level_pearson_rho,
         'spearmanr': list_test_node_level_spearmanr_rho,
@@ -57,12 +58,13 @@ def plt_compare(name_values: Dict[str, List[float]], fig_path: str):
 
 
 PLT_TUPLES = [
-    # ('Ours', 'superblue19/hyper.json'),
-    # ('Ours (small)', 'superblue19/hyper-small.json'),
-    # ('Ours (o. geom.)', 'superblue19/hyper-xbi.json'),
-    ('Ours (o. topo.)', 'superblue19/hyper-xgr.json'),
-    ('Ours (o. topo.) new 1', 'superblue19/hyper-xgr-test.json'),
-    ('Ours (o. topo.) new 2', 'superblue19/hyper-xgr-test2.json'),
+    ('Ours', 'superblue19/hyper.json'),
+    ('Ours new 1', 'superblue19/hyper-test.json'),
+    ('Ours new 2', 'superblue19/hyper-test2.json'),
+    # ('Ours (o. geom.)', 'superblue19/hyper-geom.json'),
+#     ('Ours (o. topo.)', 'superblue19/hyper-topo.json'),
+#     ('Ours (o. topo.) new 1', 'superblue19/hyper-topo-test.json'),
+#     ('Ours (o. topo.) new 2', 'superblue19/hyper-topo-test2.json'),
     # ('SAGE', 'superblue19/SAGE.json'),
     # ('GCN', 'superblue19/GCN.json'),
     # ('GAT', 'superblue19/GAT.json'),
