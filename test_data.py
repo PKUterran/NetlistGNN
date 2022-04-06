@@ -185,7 +185,7 @@ def process_data(dir_name: str, given_iter, index: int, hashcode: str,
         # print(partition)
         # print(keep_net_ids)
         print(part_hetero_graph)
-        print(part_hetero_graph.edges['near'])
+        # print(part_hetero_graph.edges['near'])
         # print(remove_net_ids)
         # exit(123)
         list_hetero_graph.append(part_hetero_graph)
@@ -206,6 +206,12 @@ DEFAULT_CONFIG = {
 if __name__ == '__main__':
     # dump_data()
     _, list_hg = process_data(DATA_DIR, 900, 8, '000000')
+
+    list_hg = [dgl.add_self_loop(hg, etype='near') for hg in list_hg]
+    list_hg = [dgl.remove_edges(hg, hg.edges('eid', etype='near'), etype='near') for hg in list_hg]
+    # list_hg = [dgl.remove_edges(hg, hg.edges('eid', etype='pinned'), etype='pinned') for hg in list_hg]
+    for hg in list_hg:
+        print(hg)
 
     model = NetlistGNN(4, 1, 3, 1, DEFAULT_CONFIG, recurrent=True)
     for i, hg in enumerate(list_hg):
