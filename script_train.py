@@ -86,19 +86,20 @@ def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name
 argparser = argparse.ArgumentParser("Training")
 argparser.add_argument('--name', type=str, default='main')
 argparser.add_argument('--test', type=str, default='superblue19')
-argparser.add_argument('--epochs', type=int, default=25)
+argparser.add_argument('--epochs', type=int, default=10)
 argparser.add_argument('--train_epoch', type=int, default=5)
 argparser.add_argument('--batch', type=int, default=1)
-argparser.add_argument('--lr', type=float, default=1e-3)
+argparser.add_argument('--lr', type=float, default=2e-4)
 argparser.add_argument('--weight_decay', type=float, default=2e-4)
 argparser.add_argument('--lr_decay', type=float, default=3e-2)
+argparser.add_argument('--beta', type=float, default=0.2)
 
 argparser.add_argument('--layers', type=int, default=2)  # 2
 argparser.add_argument('--node_feats', type=int, default=64)  # 64
 argparser.add_argument('--net_feats', type=int, default=128)  # 128
 argparser.add_argument('--pin_feats', type=int, default=16)  # 16
 argparser.add_argument('--topo_geom', type=str, default='both')  # default
-argparser.add_argument('--heads', type=int, default=2)  # 2
+argparser.add_argument('--recurrent', type=bool, default=False)  # False
 
 argparser.add_argument('--seed', type=int, default=0)
 argparser.add_argument('--device', type=str, default='cuda:0')
@@ -147,11 +148,11 @@ train_list_tuple_graph, test_list_tuple_graph = [], []
 
 
 def fit_topo_geom(ltg):
-    ltg = [(g, dgl.add_self_loop(hg, etype='near')) for g, hg in ltg]
     if args.topo_geom == 'topo':
         ltg = [(g, dgl.remove_edges(hg, hg.edges('eid', etype='near'), etype='near')) for g, hg in ltg]
     elif args.topo_geom == 'geom':
         ltg = [(g, dgl.remove_edges(hg, hg.edges('eid', etype='pinned'), etype='pinned')) for g, hg in ltg]
+    ltg = [(g, dgl.add_self_loop(hg, etype='near')) for g, hg in ltg]
     return ltg
 
 
@@ -190,6 +191,7 @@ model = NetlistGNN(
     n_target=1,
     activation=args.outtype,
     config=config,
+    recurrent=args.recurrent,
 ).to(device)
 n_param = 0
 for name, param in model.named_parameters():
@@ -197,7 +199,15 @@ for name, param in model.named_parameters():
     n_param += reduce(lambda x, y: x * y, param.shape)
 print(f'# of parameters: {n_param}')
 
-loss_f = nn.MSELoss()
+if args.beta < 1e-5:
+    print(f'### USE L1Loss ###')
+    loss_f = L1Loss()
+elif args.beta > 7.0:
+    print(f'### USE MSELoss ###')
+    loss_f = MSELoss()
+else:
+    print(f'### USE SmoothL1Loss with beta={args.beta} ###')
+    loss_f = nn.SmoothL1Loss(beta=args.beta)
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=(1 - args.lr_decay))
 

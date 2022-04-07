@@ -22,7 +22,7 @@ class NodeNetGNN(nn.Module):
             'pinned': NNConv(in_feats=hidden_net_feats, out_feats=out_node_feats, edge_func=edge_func2)
             if use_edge_attr else GraphConv(in_feats=hidden_net_feats, out_feats=out_node_feats),
             'near': SAGEConv(in_feats=hidden_node_feats, out_feats=out_node_feats, aggregator_type='pool'),
-        })
+        }, aggregate='max')
 
     def forward(self, g: dgl.DGLHeteroGraph, node_feat: torch.Tensor, pin_feat: torch.Tensor, net_feat: torch.Tensor
                 ) -> Tuple[torch.Tensor, torch.Tensor]:

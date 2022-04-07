@@ -58,10 +58,12 @@ def plt_compare(name_values: Dict[str, List[float]], fig_path: str):
 
 
 PLT_TUPLES = [
-    ('Ours', 'superblue19/hyper.json'),
-    ('Ours new 1', 'superblue19/hyper-test.json'),
-    ('Ours new 2', 'superblue19/hyper-test2.json'),
-    # ('Ours (o. geom.)', 'superblue19/hyper-geom.json'),
+#     ('Ours', 'superblue19/hyper.json'),
+#     ('Ours new 1', 'superblue19/hyper-test.json'),
+#     ('Ours new 2', 'superblue19/hyper-test2.json'),
+    ('Ours (o. geom.)', 'superblue19/hyper-geom.json'),
+    ('Ours (o. geom.) new 1', 'superblue19/hyper-geom-test.json'),
+    ('Ours (o. geom.) new 2', 'superblue19/hyper-geom-test2.json'),
 #     ('Ours (o. topo.)', 'superblue19/hyper-topo.json'),
 #     ('Ours (o. topo.) new 1', 'superblue19/hyper-topo-test.json'),
 #     ('Ours (o. topo.) new 2', 'superblue19/hyper-topo-test2.json'),

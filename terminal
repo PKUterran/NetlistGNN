@@ -2,6 +2,7 @@
 python script_train.py --name hyper
 python script_train.py --name hyper-topo --topo_geom topo
 python script_train.py --name hyper-geom --topo_geom geom
+python script_train.py --name hyper-topo-rec --topo_geom topo --recurrent True --layers 4
 
 # GNN
 python script_train_gnn.py --name GAT --graph_type GAT --logic_features True
@@ -30,6 +31,10 @@ python script_process.py --datadir superblue11
 python script_process.py --datadir superblue14
 python script_process.py --datadir superblue16
 python script_process.py --datadir superblue19
+
+python script_train.py --name hyper-geom --topo_geom geom
+python script_train.py --name hyper-geom-test --topo_geom geom --beta 0.05
+python script_train.py --name hyper-geom-test2 --topo_geom geom --beta 0.2
 
 python script_train.py --name hyper-topo-test --topo_geom topo
 python script_train.py --name hyper-topo-test2 --topo_geom topo
