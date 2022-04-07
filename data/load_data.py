@@ -76,6 +76,17 @@ def get_pin_density(shape, bin_x, bin_y, xdata, ydata, edge) -> np.ndarray:
     return pin_density
 
 
+def get_node_density(shape, bin_x, bin_y, xdata, ydata) -> np.ndarray:
+    node_density = np.zeros(shape, dtype=np.float)
+    for x, y in zip(xdata, ydata):
+        if x < 1e-5 and y < 1e-5:
+            continue
+        key1 = int(x / bin_x)
+        key2 = int(y / bin_y)
+        node_density[key1, key2] += 1
+    return node_density
+
+
 def feature_grid2node(grid_feature: np.ndarray, bin_x, bin_y, xdata, ydata) -> np.ndarray:
     return np.array([
         grid_feature[int(x / bin_x), int(y / bin_y)] for x, y in zip(xdata, ydata)
@@ -102,6 +113,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     h_net_density_grid = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_h.npy')
     v_net_density_grid = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_v.npy')
     pin_density_grid = get_pin_density(h_net_density_grid.shape, bin_x, bin_y, xdata, ydata, edge)
+    node_density_grid = get_node_density(h_net_density_grid.shape, bin_x, bin_y, xdata, ydata)
 
     labels = np.load(f'{dir_name}/iter_{given_iter}_node_label_full_{hashcode}_.npy')
     labels = labels[:, index]
@@ -112,6 +124,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
         feature_grid2node(h_net_density_grid, bin_x, bin_y, xdata, ydata),
         feature_grid2node(v_net_density_grid, bin_x, bin_y, xdata, ydata),
         feature_grid2node(pin_density_grid, bin_x, bin_y, xdata, ydata),
+        feature_grid2node(node_density_grid, bin_x, bin_y, xdata, ydata),
     )), dtype=torch.float32).t()
     node_pos = torch.tensor(np.vstack((xdata, ydata)), dtype=torch.float32).t()
 

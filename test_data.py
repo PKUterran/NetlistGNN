@@ -101,6 +101,7 @@ def process_data(dir_name: str, given_iter, index: int, hashcode: str,
     labels = labels[:n_node, index]
 
     node_hv = torch.tensor(np.vstack((sizdata_x, sizdata_y)), dtype=torch.float32).t()
+    node_pos = torch.tensor(np.vstack((xdata, ydata)), dtype=torch.float32).t()
 
     # homo_graph
     us, vs = [], []
@@ -110,6 +111,7 @@ def process_data(dir_name: str, given_iter, index: int, hashcode: str,
         us.extend(us_)
         vs.extend(vs_)
     homo_graph = add_self_loop(dgl.graph((us, vs), num_nodes=n_node))
+    homo_graph.ndata['pos'] = node_pos[:n_node, :]
     homo_graph.ndata['feat'] = node_hv
     extra = fo_average(homo_graph)
     homo_graph.ndata.pop('inter')

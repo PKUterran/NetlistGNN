@@ -129,7 +129,7 @@ assert args.graph_type in ['GCN', 'SAGE', 'GAT']
 if args.logic_features:
     nfeats = 3
 else:
-    nfeats = 7
+    nfeats = 8
 
 arch.insert(0, 2 * nfeats + args.degdim)
 arch.append(1)
@@ -208,11 +208,12 @@ for epoch in range(0, args.epochs + 1):
             optimizer.zero_grad()
             pred = model.wholeforward(
                 g=homo_graph,
-                x=homo_graph.ndata['feat'][:, [0, 1, 2, 6, 7, 8]] if args.logic_features
+                x=homo_graph.ndata['feat'][:, [0, 1, 2, 7, 8, 9]] if args.logic_features
                 else torch.cat([homo_graph.ndata['feat'], homo_graph.ndata['pos']], dim=-1)
             )
             batch_labels = homo_graph.ndata['label']
-            loss = loss_f(pred.view(-1), batch_labels.float())
+            weight = 1 / homo_graph.ndata['feat'][:, 6]
+            loss = loss_f(pred.view(-1) * weight, batch_labels.float() * weight)
             loss.backward()
             optimizer.step()
         scheduler.step()
@@ -228,7 +229,7 @@ for epoch in range(0, args.epochs + 1):
                 homo_graph = homo_graph.to(device)
                 prd = model.wholeforward(
                     g=homo_graph,
-                    x=homo_graph.ndata['feat'][:, [0, 1, 2, 6, 7, 8]] if args.logic_features
+                    x=homo_graph.ndata['feat'][:, [0, 1, 2, 7, 8, 9]] if args.logic_features
                     else torch.cat([homo_graph.ndata['feat'], homo_graph.ndata['pos']], dim=-1)
                 )
                 output_labels = homo_graph.ndata['label']

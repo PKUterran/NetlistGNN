@@ -201,10 +201,10 @@ print(f'# of parameters: {n_param}')
 
 if args.beta < 1e-5:
     print(f'### USE L1Loss ###')
-    loss_f = L1Loss()
+    loss_f = nn.L1Loss()
 elif args.beta > 7.0:
     print(f'### USE MSELoss ###')
-    loss_f = MSELoss()
+    loss_f = nn.MSELoss()
 else:
     print(f'### USE SmoothL1Loss with beta={args.beta} ###')
     loss_f = nn.SmoothL1Loss(beta=args.beta)
@@ -234,14 +234,17 @@ for epoch in range(0, args.epochs + 1):
             homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
             optimizer.zero_grad()
             pred = model.forward(
-                in_node_feat=hetero_graph.nodes['node'].data['hv'][:, [0, 1, 2, 6, 7, 8]]
+                in_node_feat=hetero_graph.nodes['node'].data['hv'][:, [0, 1, 2, 7, 8, 9]]
                 if args.topo_geom == 'topo' else hetero_graph.nodes['node'].data['hv'],
                 in_net_feat=hetero_graph.nodes['net'].data['hv'],
                 in_pin_feat=hetero_graph.edges['pinned'].data['he'],
                 node_net_graph=hetero_graph,
             ) * args.scalefac
             batch_labels = homo_graph.ndata['label']
-            loss = loss_f(pred.view(-1), batch_labels.float())
+            weight = 1 / hetero_graph.nodes['node'].data['hv'][:, 6]
+            # print(weight)
+            # exit(123)
+            loss = loss_f(pred.view(-1) * weight, batch_labels.float() * weight)
             losses.append(loss)
             if len(losses) >= args.batch or j == n_tuples - 1:
                 sum(losses).backward()
@@ -260,7 +263,7 @@ for epoch in range(0, args.epochs + 1):
                 homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
                 # print(hmg.num_nodes(), hmg.num_edges())
                 prd = model.forward(
-                    in_node_feat=hetero_graph.nodes['node'].data['hv'][:, [0, 1, 2, 6, 7, 8]]
+                    in_node_feat=hetero_graph.nodes['node'].data['hv'][:, [0, 1, 2, 7, 8, 9]]
                     if args.topo_geom == 'topo' else hetero_graph.nodes['node'].data['hv'],
                     in_net_feat=hetero_graph.nodes['net'].data['hv'],
                     in_pin_feat=hetero_graph.edges['pinned'].data['he'],
