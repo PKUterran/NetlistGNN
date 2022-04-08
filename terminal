@@ -33,8 +33,8 @@ python script_process.py --datadir superblue16
 python script_process.py --datadir superblue19
 
 python script_train.py --name hyper-geom --topo_geom geom
-python script_train.py --name hyper-geom-test --topo_geom geom --beta 0.05
-python script_train.py --name hyper-geom-test2 --topo_geom geom --beta 0.2
+python script_train.py --name hyper-geom-test --topo_geom geom --layers 1
+python script_train.py --name hyper-geom-test2 --topo_geom geom --layers 3
 
 python script_train.py --name hyper-topo-test --topo_geom topo
 python script_train.py --name hyper-topo-test2 --topo_geom topo

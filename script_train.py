@@ -60,6 +60,8 @@ def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name
     indices = []
     for i in range(0, posandpred.shape[0]):
         key1, key2 = int(np.rint(posx[i] / binx)), int(np.rint(posy[i] / biny))
+        if key1 == 0 and key2 == 0:
+            continue
         wmap[key1][key2] += 1
         indices += [key2 + key1 * ygridshape]
         cmap_prd[key1][key2] += nodepred[i]
@@ -86,13 +88,13 @@ def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name
 argparser = argparse.ArgumentParser("Training")
 argparser.add_argument('--name', type=str, default='main')
 argparser.add_argument('--test', type=str, default='superblue19')
-argparser.add_argument('--epochs', type=int, default=10)
+argparser.add_argument('--epochs', type=int, default=20)
 argparser.add_argument('--train_epoch', type=int, default=5)
 argparser.add_argument('--batch', type=int, default=1)
 argparser.add_argument('--lr', type=float, default=2e-4)
 argparser.add_argument('--weight_decay', type=float, default=2e-4)
-argparser.add_argument('--lr_decay', type=float, default=3e-2)
-argparser.add_argument('--beta', type=float, default=0.2)
+argparser.add_argument('--lr_decay', type=float, default=2e-2)
+argparser.add_argument('--beta', type=float, default=0.5)
 
 argparser.add_argument('--layers', type=int, default=2)  # 2
 argparser.add_argument('--node_feats', type=int, default=64)  # 64
@@ -143,6 +145,7 @@ train_dataset_names = [
 ]
 validate_dataset_name = 'superblue16_processed'
 test_dataset_name = 'superblue19_processed'
+# test_dataset_name = 'superblue2_processed'
 
 train_list_tuple_graph, test_list_tuple_graph = [], []
 
@@ -183,7 +186,7 @@ in_node_feats = train_list_tuple_graph[0][1].nodes['node'].data['hv'].shape[1]
 in_net_feats = train_list_tuple_graph[0][1].nodes['net'].data['hv'].shape[1]
 in_pin_feats = train_list_tuple_graph[0][1].edges['pinned'].data['he'].shape[1]
 if args.topo_geom == 'topo':
-    in_node_feats -= 6
+    in_node_feats -= 8
 model = NetlistGNN(
     in_node_feats=in_node_feats,
     in_net_feats=in_net_feats,
@@ -242,9 +245,14 @@ for epoch in range(0, args.epochs + 1):
             ) * args.scalefac
             batch_labels = homo_graph.ndata['label']
             weight = 1 / hetero_graph.nodes['node'].data['hv'][:, 6]
-            # print(weight)
-            # exit(123)
-            loss = loss_f(pred.view(-1) * weight, batch_labels.float() * weight)
+            weight[torch.isinf(weight)] = 0.0
+#             print(weight)
+#             print(homo_graph.ndata['pos'])
+#             exit(123)
+#             loss = loss_f(pred.view(-1) * weight, batch_labels.float() * weight))
+#             loss = torch.sum(((pred.view(-1) - batch_labels.float()) ** 2) * weight) / torch.sum(weight)
+            loss = torch.sum(((pred.view(-1) - batch_labels.float()) ** 2) * (weight ** 3)) / torch.sum((weight ** 3))
+#             loss = torch.sum(torch.abs(pred.view(-1) - batch_labels.float()) * (weight ** 3)) / torch.sum((weight ** 3))
             losses.append(loss)
             if len(losses) >= args.batch or j == n_tuples - 1:
                 sum(losses).backward()
@@ -256,7 +264,7 @@ for epoch in range(0, args.epochs + 1):
     def evaluate(ltg, set_name, n_node, single_net=False):
         model.eval()
         print(f'\tEvaluate {set_name}:')
-        outputdata = np.zeros((n_node, 4))
+        outputdata = np.zeros((n_node, 5))
         p = 0
         with torch.no_grad():
             for j, (homo_graph, hetero_graph) in enumerate(ltg):
@@ -269,21 +277,23 @@ for epoch in range(0, args.epochs + 1):
                     in_pin_feat=hetero_graph.edges['pinned'].data['he'],
                     node_net_graph=hetero_graph,
                 ) * args.scalefac
+                density = homo_graph.ndata['feat'][:, 6].cpu().data.numpy()
                 output_labels = homo_graph.ndata['label']
                 output_pos = (homo_graph.ndata['pos'].cpu().data.numpy())
                 output_predictions = prd
                 tgt = output_labels.cpu().data.numpy().flatten()
                 prd = output_predictions.cpu().data.numpy().flatten()
                 ln = len(tgt)
-                outputdata[p:p + ln, 0], outputdata[p:p + ln, 1], outputdata[p:p + ln, 2:4] = tgt, prd, output_pos
+                outputdata[p:p + ln, 0], outputdata[p:p + ln, 1], outputdata[p:p + ln, 2:4], outputdata[p:p + ln, 4] = tgt, prd, output_pos, density
                 p += ln
         outputdata = outputdata[:p, :]
+        outputdata[outputdata[:, 4] < 0.5, 1] = outputdata[outputdata[:, 4] < 0.5, 0]
+        printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
         if single_net:
-            get_grid_level_corr(outputdata, args.binx, args.biny,
+            get_grid_level_corr(outputdata[:, :4], args.binx, args.biny,
                                 int(np.rint(np.max(outputdata[:, 2]) / args.binx)) + 1,
                                 int(np.rint(np.max(outputdata[:, 3]) / args.biny)) + 1,
                                 set_name=set_name)
-        printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
 
     t0 = time()
     if epoch:

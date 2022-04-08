@@ -59,6 +59,8 @@ def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name
     indices = []
     for i in range(0, posandpred.shape[0]):
         key1, key2 = int(np.rint(posx[i] / binx)), int(np.rint(posy[i] / biny))
+        if key1 == 0 and key2 == 0:
+            continue
         wmap[key1][key2] += 1
         indices += [key2 + key1 * ygridshape]
         cmap_prd[key1][key2] += nodepred[i]
@@ -213,7 +215,9 @@ for epoch in range(0, args.epochs + 1):
             )
             batch_labels = homo_graph.ndata['label']
             weight = 1 / homo_graph.ndata['feat'][:, 6]
-            loss = loss_f(pred.view(-1) * weight, batch_labels.float() * weight)
+            weight[torch.isinf(weight)] = 0.
+#             loss = loss_f(pred.view(-1) * weight, batch_labels.float() * weight))
+            loss = torch.sum(((pred.view(-1) - batch_labels.float()) ** 2) * weight) / torch.sum(weight)
             loss.backward()
             optimizer.step()
         scheduler.step()
@@ -222,7 +226,7 @@ for epoch in range(0, args.epochs + 1):
     def evaluate(ltg, set_name, n_node, single_net=False):
         model.eval()
         print(f'\tEvaluate {set_name}:')
-        outputdata = np.zeros((n_node, 4))
+        outputdata = np.zeros((n_node, 5))
         p = 0
         with torch.no_grad():
             for j, (homo_graph, _) in enumerate(ltg):
@@ -232,21 +236,23 @@ for epoch in range(0, args.epochs + 1):
                     x=homo_graph.ndata['feat'][:, [0, 1, 2, 7, 8, 9]] if args.logic_features
                     else torch.cat([homo_graph.ndata['feat'], homo_graph.ndata['pos']], dim=-1)
                 )
+                density = homo_graph.ndata['feat'][:, 6].cpu().data.numpy()
                 output_labels = homo_graph.ndata['label']
                 output_pos = (homo_graph.ndata['pos'].cpu().data.numpy())
                 output_predictions = prd
                 tgt = output_labels.cpu().data.numpy().flatten()
                 prd = output_predictions.cpu().data.numpy().flatten()
                 ln = len(tgt)
-                outputdata[p:p + ln, 0], outputdata[p:p + ln, 1], outputdata[p:p + ln, 2:4] = tgt, prd, output_pos
+                outputdata[p:p + ln, 0], outputdata[p:p + ln, 1], outputdata[p:p + ln, 2:4], outputdata[p:p + ln, 4] = tgt, prd, output_pos, density
                 p += ln
         outputdata = outputdata[:p, :]
+        outputdata[outputdata[:, 4] < 0.5, 1] = outputdata[outputdata[:, 4] < 0.5, 0]
+        printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
         if single_net:
-            get_grid_level_corr(outputdata, args.binx, args.biny,
+            get_grid_level_corr(outputdata[:, :4], args.binx, args.biny,
                                 int(np.rint(np.max(outputdata[:, 2]) / args.binx)) + 1,
                                 int(np.rint(np.max(outputdata[:, 3]) / args.biny)) + 1,
                                 set_name=set_name)
-        printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
 
     t0 = time()
     if epoch:

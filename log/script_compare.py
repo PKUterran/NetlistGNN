@@ -69,7 +69,7 @@ PLT_TUPLES = [
 #     ('Ours (o. topo.) new 2', 'superblue19/hyper-topo-test2.json'),
     # ('SAGE', 'superblue19/SAGE.json'),
     # ('GCN', 'superblue19/GCN.json'),
-    # ('GAT', 'superblue19/GAT.json'),
+#     ('GAT', 'superblue19/GAT.json'),
     # ('SAGE (w. geom.)', 'superblue19/SAGE-pos.json'),
     # ('GCN (w. geom.)', 'superblue19/GCN-pos.json'),
     # ('GAT (w. geom.)', 'superblue19/GAT-pos.json'),
@@ -85,6 +85,7 @@ if __name__ == '__main__':
                 d = json.load(fp)
             ret = get_tendency(d)
             ds[name] = ret['pearson (grid index)']
+#             ds[name] = ret['pearson']
             ds2[name] = ret['rmse']
             print(f'For {name}:')
             for k, v in ret.items():
