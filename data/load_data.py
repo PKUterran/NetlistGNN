@@ -152,6 +152,9 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     list_homo_graph = [dgl.node_subgraph(homo_graph, partition) for partition in partition_list]
     print('\thomo_graph generated')
 
+    def distance_among(a: int, b: int) -> float:
+        return ((xdata[a] - xdata[b]) ** 2 + (ydata[a] - ydata[b]) ** 2) ** 0.5
+
     # hetero_graph
     us4, vs4 = [], []
     for x_offset, y_offset in [(0, 0), (bin_x / 2, 0), (0, bin_y / 2), (bin_x / 2, bin_y / 2)]:
@@ -177,6 +180,11 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
             vs.extend(vs_)
         us4.extend(us)
         vs4.extend(vs)
+    dis4 = [[distance_among(u, v)] for u, v in zip(us4, vs4)]
+    print(dis4)
+    print(np.mean(dis4))
+    print(np.std(dis4))
+    exit(123)
 
     print('\thetero_graph generated 1/2')
 
@@ -199,6 +207,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     hetero_graph.nodes['net'].data['hv'] = net_hv
     # hetero_graph.edges['pins'].data['he'] = torch.tensor(he, dtype=torch.float32)
     hetero_graph.edges['pinned'].data['he'] = torch.tensor(he, dtype=torch.float32)
+    hetero_graph.edges['near'].data['he'] = torch.tensor(dis4, dtype=torch.float32)
 
     list_hetero_graph = []
     iter_partition_list = tqdm.tqdm(partition_list, total=len(partition_list)) if use_tqdm else partition_list

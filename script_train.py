@@ -100,6 +100,7 @@ argparser.add_argument('--layers', type=int, default=2)  # 2
 argparser.add_argument('--node_feats', type=int, default=64)  # 64
 argparser.add_argument('--net_feats', type=int, default=128)  # 128
 argparser.add_argument('--pin_feats', type=int, default=16)  # 16
+argparser.add_argument('--edge_feats', type=int, default=4)  # 4
 argparser.add_argument('--topo_geom', type=str, default='both')  # default
 argparser.add_argument('--recurrent', type=bool, default=False)  # False
 
@@ -130,6 +131,7 @@ config = {
     'NODE_FEATS': args.node_feats,
     'NET_FEATS': args.net_feats,
     'PIN_FEATS': args.pin_feats,
+    'EDGE_FEATS': args.edge_feats,
 }
 
 train_dataset_names = [
@@ -191,6 +193,7 @@ model = NetlistGNN(
     in_node_feats=in_node_feats,
     in_net_feats=in_net_feats,
     in_pin_feats=in_pin_feats,
+    in_edge_feats=1,
     n_target=1,
     activation=args.outtype,
     config=config,
@@ -241,6 +244,7 @@ for epoch in range(0, args.epochs + 1):
                 if args.topo_geom == 'topo' else hetero_graph.nodes['node'].data['hv'],
                 in_net_feat=hetero_graph.nodes['net'].data['hv'],
                 in_pin_feat=hetero_graph.edges['pinned'].data['he'],
+                in_edge_feat=hetero_graph.edges['near'].data['he'],
                 node_net_graph=hetero_graph,
             ) * args.scalefac
             batch_labels = homo_graph.ndata['label']
@@ -275,6 +279,7 @@ for epoch in range(0, args.epochs + 1):
                     if args.topo_geom == 'topo' else hetero_graph.nodes['node'].data['hv'],
                     in_net_feat=hetero_graph.nodes['net'].data['hv'],
                     in_pin_feat=hetero_graph.edges['pinned'].data['he'],
+                    in_edge_feat=hetero_graph.edges['near'].data['he'],
                     node_net_graph=hetero_graph,
                 ) * args.scalefac
                 density = homo_graph.ndata['feat'][:, 6].cpu().data.numpy()
