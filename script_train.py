@@ -103,6 +103,9 @@ argparser.add_argument('--pin_feats', type=int, default=16)  # 16
 argparser.add_argument('--edge_feats', type=int, default=4)  # 4
 argparser.add_argument('--topo_geom', type=str, default='both')  # default
 argparser.add_argument('--recurrent', type=bool, default=False)  # False
+argparser.add_argument('--use_topo_edge', type=bool, default=True)  # True
+argparser.add_argument('--use_geom_edge', type=bool, default=False)  # False
+argparser.add_argument('--use_pos_code', type=bool, default=True)  # True
 
 argparser.add_argument('--seed', type=int, default=0)
 argparser.add_argument('--device', type=str, default='cuda:0')
@@ -188,7 +191,7 @@ in_node_feats = train_list_tuple_graph[0][1].nodes['node'].data['hv'].shape[1]
 in_net_feats = train_list_tuple_graph[0][1].nodes['net'].data['hv'].shape[1]
 in_pin_feats = train_list_tuple_graph[0][1].edges['pinned'].data['he'].shape[1]
 if args.topo_geom == 'topo':
-    in_node_feats -= 8
+    in_node_feats = 6
 model = NetlistGNN(
     in_node_feats=in_node_feats,
     in_net_feats=in_net_feats,
@@ -198,6 +201,7 @@ model = NetlistGNN(
     activation=args.outtype,
     config=config,
     recurrent=args.recurrent,
+    use_topo_edge=args.use_topo_edge, use_geom_edge=args.use_geom_edge
 ).to(device)
 n_param = 0
 for name, param in model.named_parameters():
@@ -239,9 +243,13 @@ for epoch in range(0, args.epochs + 1):
         for j, (homo_graph, hetero_graph) in enumerate(ltg):
             homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
             optimizer.zero_grad()
+            in_node_feat = hetero_graph.nodes['node'].data['hv']
+            if args.use_pos_code:
+                in_node_feat += hetero_graph.nodes['node'].data['pos_code']
+            if args.topo_geom == 'topo':
+                in_node_feat = in_node_feat[:, [0, 1, 2, 7, 8, 9]]
             pred = model.forward(
-                in_node_feat=hetero_graph.nodes['node'].data['hv'][:, [0, 1, 2, 7, 8, 9]]
-                if args.topo_geom == 'topo' else hetero_graph.nodes['node'].data['hv'],
+                in_node_feat=in_node_feat,
                 in_net_feat=hetero_graph.nodes['net'].data['hv'],
                 in_pin_feat=hetero_graph.edges['pinned'].data['he'],
                 in_edge_feat=hetero_graph.edges['near'].data['he'],
@@ -274,9 +282,13 @@ for epoch in range(0, args.epochs + 1):
             for j, (homo_graph, hetero_graph) in enumerate(ltg):
                 homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
                 # print(hmg.num_nodes(), hmg.num_edges())
+                in_node_feat = hetero_graph.nodes['node'].data['hv']
+                if args.use_pos_code:
+                    in_node_feat += hetero_graph.nodes['node'].data['pos_code']
+                if args.topo_geom == 'topo':
+                    in_node_feat = in_node_feat[:, [0, 1, 2, 7, 8, 9]]
                 prd = model.forward(
-                    in_node_feat=hetero_graph.nodes['node'].data['hv'][:, [0, 1, 2, 7, 8, 9]]
-                    if args.topo_geom == 'topo' else hetero_graph.nodes['node'].data['hv'],
+                    in_node_feat=in_node_feat,
                     in_net_feat=hetero_graph.nodes['net'].data['hv'],
                     in_pin_feat=hetero_graph.edges['pinned'].data['he'],
                     in_edge_feat=hetero_graph.edges['near'].data['he'],

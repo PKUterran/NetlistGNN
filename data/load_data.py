@@ -153,11 +153,15 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     print('\thomo_graph generated')
 
     def distance_among(a: int, b: int) -> float:
-        return ((xdata[a] - xdata[b]) ** 2 + (ydata[a] - ydata[b]) ** 2) ** 0.5
+        return ((xdata[a] + sizdata_x[a] * 0.5 - xdata[b] - sizdata_x[b] * 0.5) ** 2 
+                + (ydata[a] + sizdata_y[a] * 0.5 - ydata[b] - sizdata_y[b] * 0.5) ** 2) ** 0.5
 
     # hetero_graph
+    n_dim = homo_graph.ndata['feat'].shape[1]
     us4, vs4 = [], []
-    for x_offset, y_offset in [(0, 0), (bin_x / 2, 0), (0, bin_y / 2), (bin_x / 2, bin_y / 2)]:
+    off_temps = [5678, 7654, 8888, 10035]
+    node_pos_code = np.zeros([n_node, n_dim], dtype=np.float)
+    for off_idx, (x_offset, y_offset) in enumerate([(0, 0), (bin_x / 2, 0), (0, bin_y / 2), (bin_x / 2, bin_y / 2)]):
         box_node = {}
         iter_sp = tqdm.tqdm(enumerate(zip(sizdata_x, sizdata_y, xdata, ydata)), total=n_node) \
             if use_tqdm else enumerate(zip(sizdata_x, sizdata_y, xdata, ydata))
@@ -173,6 +177,20 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
             for x in range(x_1, x_2 + 1):
                 for y in range(y_1, y_2 + 1):
                     box_node.setdefault(f'{x}-{y}', []).append(i)
+            pos_idx = 20 * (((px + sx * 0.5) / bin_x) % 1.0) + 5 * (((py + sy * 0.5) / bin_y) % 1.0)
+            node_pos_code[i, 0::2] += np.sin(
+                np.array([
+                    pos_idx / (off_temps[off_idx] ** (di / n_dim)) for di in list(range(n_dim))[0::2]
+                ], dtype=np.float)
+            )
+            node_pos_code[i, 1::2] += np.cos(
+                np.array([
+                    pos_idx / (off_temps[off_idx] ** ((di - 1) / n_dim)) for di in list(range(n_dim))[1::2]
+                ], dtype=np.float)
+            )
+#             print(pos_idx)
+#             print(node_pos_code[i])
+#             exit(123)
         us, vs = [], []
         for nodes in box_node.values():
             us_, vs_ = node_pairs_among(nodes, max_cap=5)
@@ -180,11 +198,11 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
             vs.extend(vs_)
         us4.extend(us)
         vs4.extend(vs)
-    dis4 = [[distance_among(u, v)] for u, v in zip(us4, vs4)]
-    print(dis4)
-    print(np.mean(dis4))
-    print(np.std(dis4))
-    exit(123)
+    dis4 = [[distance_among(u, v) / 24] for u, v in zip(us4, vs4)]
+#     print(dis4)
+#     print(np.mean(dis4))
+#     print(np.std(dis4))
+#     exit(123)
 
     print('\thetero_graph generated 1/2')
 
@@ -204,6 +222,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
         ('net', 'pinned', 'node'): (vs, us),
     }, num_nodes_dict={'node': n_node, 'net': len(net_degree)})
     hetero_graph.nodes['node'].data['hv'] = homo_graph.ndata['feat']
+    hetero_graph.nodes['node'].data['pos_code'] = torch.tensor(node_pos_code, dtype=torch.float32)
     hetero_graph.nodes['net'].data['hv'] = net_hv
     # hetero_graph.edges['pins'].data['he'] = torch.tensor(he, dtype=torch.float32)
     hetero_graph.edges['pinned'].data['he'] = torch.tensor(he, dtype=torch.float32)
