@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import dgl
-from dgl.nn.pytorch import NNConv, SAGEConv, GATConv, HeteroGraphConv, GraphConv
+from dgl.nn.pytorch import NNConv, SAGEConv, GATConv, HeteroGraphConv, GraphConv, CFConv
 from typing import Tuple, Dict, Any, List
 
 
@@ -13,15 +13,16 @@ class NodeNetGNN(nn.Module):
         super(NodeNetGNN, self).__init__()
         self.use_topo_edge = use_topo_edge
         self.use_geom_edge = use_geom_edge
-        self.topo_lin = nn.Linear(hidden_pin_feats, hidden_net_feats * out_node_feats)
-        self.geom_lin = nn.Linear(hidden_edge_feats, hidden_node_feats * out_node_feats)
+#         self.topo_lin = nn.Linear(hidden_pin_feats, hidden_net_feats * out_node_feats)
+#         self.geom_lin = nn.Linear(hidden_edge_feats, hidden_node_feats * out_node_feats)
+#         self.topo_weight = nn.Linear(hidden_pin_feats, 1)
         self.geom_weight = nn.Linear(hidden_edge_feats, 1)
 
-        def topo_edge_func(efeat):
-            return self.topo_lin(efeat)
+#         def topo_edge_func(efeat):
+#             return self.topo_lin(efeat)
 
-        def geom_edge_func(efeat):
-            return self.geom_lin(efeat)
+#         def geom_edge_func(efeat):
+#             return self.geom_lin(efeat)
         
         def my_agg_func(tensors, dsttype):
             new_tensors = []
@@ -35,12 +36,18 @@ class NodeNetGNN(nn.Module):
 
         self.hetero_conv = HeteroGraphConv({
             'pins': GraphConv(in_feats=hidden_node_feats, out_feats=out_net_feats),
-            'pinned': NNConv(in_feats=hidden_net_feats, out_feats=out_node_feats, edge_func=topo_edge_func)
+            'pinned': 
+#                 NNConv(in_feats=hidden_net_feats, out_feats=out_node_feats, edge_func=topo_edge_func)
+#                 SAGEConv(in_feats=(hidden_net_feats, hidden_node_feats), out_feats=out_node_feats, aggregator_type='pool')
+                CFConv(node_in_feats=hidden_net_feats, edge_in_feats=hidden_pin_feats, 
+                       hidden_feats=hidden_node_feats, out_feats=out_node_feats)
             if use_topo_edge else GraphConv(in_feats=hidden_net_feats, out_feats=out_node_feats),
-            'near': NNConv(in_feats=hidden_node_feats, out_feats=out_node_feats, edge_func=geom_edge_func)
-            if use_geom_edge else 
-                SAGEConv(in_feats=hidden_node_feats, out_feats=out_node_feats, aggregator_type='pool'),
-#                 GATConv(in_feats=hidden_node_feats, out_feats=out_node_feats, num_heads=1),
+            'near': 
+#                 NNConv(in_feats=hidden_node_feats, out_feats=out_node_feats, edge_func=geom_edge_func)
+                SAGEConv(in_feats=hidden_node_feats, out_feats=out_node_feats, aggregator_type='pool')
+#                 CFConv(node_in_feats=hidden_node_feats, edge_in_feats=hidden_edge_feats, 
+#                        hidden_feats=hidden_node_feats, out_feats=out_node_feats)
+            if use_geom_edge else GATConv(in_feats=hidden_node_feats, out_feats=out_node_feats, num_heads=1),
         }, aggregate=my_agg_func)
 
     def forward(self, g: dgl.DGLHeteroGraph, node_feat: torch.Tensor, net_feat: torch.Tensor,
@@ -53,11 +60,13 @@ class NodeNetGNN(nn.Module):
 
         mod_kwargs = {}
         if self.use_topo_edge:
-            mod_kwargs['pinned'] = {'efeat': pin_feat}
+#             mod_kwargs['pinned'] = {'efeat': pin_feat}
+#             mod_kwargs['pinned'] = {'edge_weight': torch.sigmoid(self.topo_weight(pin_feat))}
+            mod_kwargs['pinned'] = {'edge_feats': pin_feat}
         if self.use_geom_edge:
-            mod_kwargs['near'] = {'efeat': edge_feat}
-        else:
+#             mod_kwargs['near'] = {'efeat': edge_feat}
             mod_kwargs['near'] = {'edge_weight': torch.sigmoid(self.geom_weight(edge_feat))}
+#             mod_kwargs['near'] = {'edge_feats': edge_feat}
         
         h1 = self.hetero_conv.forward(g, h, mod_kwargs=mod_kwargs)
 
@@ -119,9 +128,15 @@ class NetlistGNN(nn.Module):
             else:
                 node_feat, net_feat = self.list_node_net_gnn[i].forward(
                     node_net_graph, node_feat, net_feat, pin_feat, edge_feat)
+            node_feat, net_feat = F.leaky_relu(node_feat), F.leaky_relu(net_feat)
 
-        output_predictions = self.output_layer_3(torch.tanh(
-            self.output_layer_2(torch.tanh(
+#         output_predictions = self.output_layer_3(torch.tanh(
+#             self.output_layer_2(torch.tanh(
+#                 self.output_layer_1(torch.cat([in_node_feat, node_feat], dim=-1))
+#             ))
+#         ))
+        output_predictions = self.output_layer_3(F.leaky_relu(
+            self.output_layer_2(F.leaky_relu(
                 self.output_layer_1(torch.cat([in_node_feat, node_feat], dim=-1))
             ))
         ))

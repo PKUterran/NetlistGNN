@@ -15,11 +15,12 @@ import torch.nn as nn
 
 from data.load_data import load_data
 from net.NetlistGNN import NetlistGNN
+from log.draw_scatter import draw_scatter
 
 import warnings
 
 warnings.filterwarnings("ignore")
-
+np.set_printoptions(precision=3,suppress = True) 
 logs: List[Dict[str, Any]] = []
 
 
@@ -79,7 +80,9 @@ def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name
     getmask = np.zeros_like(nctu)
     getmask[indices] = 1
     nctu, pred = np.multiply(nctu, getmask), np.multiply(pred, getmask)
-    printout(nctu[indices] + rademacher(1e-6, len(indices)), pred[indices] + rademacher(1e-6, len(indices)),
+#     printout(nctu[indices] + rademacher(1e-6, len(indices)), pred[indices] + rademacher(1e-6, len(indices)),
+#              "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
+    printout(nctu[indices], pred[indices],
              "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
     printout(nctu, pred, "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
     return
@@ -104,8 +107,8 @@ argparser.add_argument('--edge_feats', type=int, default=4)  # 4
 argparser.add_argument('--topo_geom', type=str, default='both')  # default
 argparser.add_argument('--recurrent', type=bool, default=False)  # False
 argparser.add_argument('--use_topo_edge', type=bool, default=True)  # True
-argparser.add_argument('--use_geom_edge', type=bool, default=False)  # False
-argparser.add_argument('--use_pos_code', type=bool, default=True)  # True
+argparser.add_argument('--use_geom_edge', type=bool, default=True)  # True
+argparser.add_argument('--pos_code', type=float, default=0.0)  # 0.0
 
 argparser.add_argument('--seed', type=int, default=0)
 argparser.add_argument('--device', type=str, default='cuda:0')
@@ -113,7 +116,7 @@ argparser.add_argument('--hashcode', type=str, default='100000')
 argparser.add_argument('--idx', type=int, default=8)
 argparser.add_argument('--itermax', type=int, default=2500)
 argparser.add_argument('--scalefac', type=float, default=7.0)
-argparser.add_argument('--outtype', type=str, default='sig')
+argparser.add_argument('--outtype', type=str, default='tanh')
 argparser.add_argument('--binx', type=int, default=32)
 argparser.add_argument('--biny', type=int, default=40)
 
@@ -149,8 +152,7 @@ train_dataset_names = [
     'superblue14_processed',
 ]
 validate_dataset_name = 'superblue16_processed'
-test_dataset_name = 'superblue19_processed'
-# test_dataset_name = 'superblue2_processed'
+test_dataset_name = f'{args.test}_processed'
 
 train_list_tuple_graph, test_list_tuple_graph = [], []
 
@@ -224,6 +226,9 @@ scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=(1 - args.lr_dec
 LOG_DIR = f'log/{args.test}'
 if not os.path.isdir(LOG_DIR):
     os.mkdir(LOG_DIR)
+FIG_DIR = 'log/temp'
+if not os.path.isdir(FIG_DIR):
+    os.mkdir(FIG_DIR)
 
 
 def to_device(a, b):
@@ -244,8 +249,8 @@ for epoch in range(0, args.epochs + 1):
             homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
             optimizer.zero_grad()
             in_node_feat = hetero_graph.nodes['node'].data['hv']
-            if args.use_pos_code:
-                in_node_feat += hetero_graph.nodes['node'].data['pos_code']
+            if args.pos_code > 1e-5 and args.topo_geom != 'topo':
+                in_node_feat += args.pos_code * hetero_graph.nodes['node'].data['pos_code']
             if args.topo_geom == 'topo':
                 in_node_feat = in_node_feat[:, [0, 1, 2, 7, 8, 9]]
             pred = model.forward(
@@ -258,13 +263,19 @@ for epoch in range(0, args.epochs + 1):
             batch_labels = homo_graph.ndata['label']
             weight = 1 / hetero_graph.nodes['node'].data['hv'][:, 6]
             weight[torch.isinf(weight)] = 0.0
+#             weight[weight < 0.201] = 0.0
+#             weight[weight > 0.499] = 0.0
 #             print(weight)
 #             print(homo_graph.ndata['pos'])
 #             exit(123)
-#             loss = loss_f(pred.view(-1) * weight, batch_labels.float() * weight))
-#             loss = torch.sum(((pred.view(-1) - batch_labels.float()) ** 2) * weight) / torch.sum(weight)
-            loss = torch.sum(((pred.view(-1) - batch_labels.float()) ** 2) * (weight ** 3)) / torch.sum((weight ** 3))
-#             loss = torch.sum(torch.abs(pred.view(-1) - batch_labels.float()) * (weight ** 3)) / torch.sum((weight ** 3))
+            if args.topo_geom != 'topo':
+#                 loss = loss_f(pred.view(-1), batch_labels.float())
+#                 loss = torch.sum(torch.relu((pred.view(-1) - batch_labels.float()) ** 2 - 0.01) * weight) / torch.sum(weight)
+                loss = torch.sum(((pred.view(-1) - batch_labels.float()) ** 2) * weight) / torch.sum(weight)
+#                 loss = torch.sum(((pred.view(-1) - batch_labels.float()) ** 2) * (weight ** 2)) / torch.sum((weight ** 2))
+#                 loss = torch.sum(torch.abs(pred.view(-1) - batch_labels.float()) * (weight ** 3)) / torch.sum((weight ** 3))
+            else:
+                loss = loss_f(pred.view(-1), batch_labels.float())
             losses.append(loss)
             if len(losses) >= args.batch or j == n_tuples - 1:
                 sum(losses).backward()
@@ -283,8 +294,8 @@ for epoch in range(0, args.epochs + 1):
                 homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
                 # print(hmg.num_nodes(), hmg.num_edges())
                 in_node_feat = hetero_graph.nodes['node'].data['hv']
-                if args.use_pos_code:
-                    in_node_feat += hetero_graph.nodes['node'].data['pos_code']
+                if args.pos_code > 1e-5 and args.topo_geom != 'topo':
+                    in_node_feat += args.pos_code * hetero_graph.nodes['node'].data['pos_code']
                 if args.topo_geom == 'topo':
                     in_node_feat = in_node_feat[:, [0, 1, 2, 7, 8, 9]]
                 prd = model.forward(
@@ -304,8 +315,18 @@ for epoch in range(0, args.epochs + 1):
                 outputdata[p:p + ln, 0], outputdata[p:p + ln, 1], outputdata[p:p + ln, 2:4], outputdata[p:p + ln, 4] = tgt, prd, output_pos, density
                 p += ln
         outputdata = outputdata[:p, :]
-        outputdata[outputdata[:, 4] < 0.5, 1] = outputdata[outputdata[:, 4] < 0.5, 0]
+#         print(f'\t\ttarget/predict: {np.max(outputdata[:, 0]):.3f}, {np.max(outputdata[:, 1]):.3f}')
+#         exit(123)
+        if args.topo_geom != 'topo':
+            bad_node = np.logical_or(outputdata[:, 4] < 0.5, outputdata[:, 4] > 17.5)
+#             bad_node = outputdata[:, 4] < 2.5
+            outputdata[bad_node, 1] = outputdata[bad_node, 0]
+#             outputdata = outputdata[np.logical_and(outputdata[:, 4] > 0, outputdata[:, 4] < 5), :]
+#             outputdata = outputdata[outputdata[:, 4] > 5, :]
+#         worst = np.argpartition(np.abs(outputdata[:, 0] - outputdata[:, 1]),-5)[-5:]
+#         print(f'\t\tworst:\n{outputdata[worst, :]}')
         printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
+        draw_scatter(outputdata[:, 0], outputdata[:, 1], f'{args.name}-{set_name}')
         if single_net:
             get_grid_level_corr(outputdata[:, :4], args.binx, args.biny,
                                 int(np.rint(np.max(outputdata[:, 2]) / args.binx)) + 1,

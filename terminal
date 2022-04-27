@@ -32,12 +32,19 @@ python script_process.py --datadir superblue14
 python script_process.py --datadir superblue16
 python script_process.py --datadir superblue19
 
-python script_train.py --name hyper-geom --topo_geom geom
-python script_train.py --name hyper-geom-test --topo_geom geom --use_geom_edge ""
-python script_train.py --name hyper-geom-test2 --topo_geom geom --use_geom_edge ""
+python script_train.py --name hyper-geom --topo_geom geom --test superblue16 --pos_code 0.0
+python script_train_LHNN.py --name LHNN --test superblue16
 
-python script_train.py --name hyper-topo-test --topo_geom topo
+python script_train.py --name hyper-geom --topo_geom geom
+python script_train.py --name hyper-geom-test --topo_geom geom --pos_code 0.1
+python script_train.py --name hyper-geom-test2 --topo_geom geom --pos_code 0.1
+python script_train.py --name hyper-geom-CF --topo_geom geom --pos_code 0.0 --use_geom_edge True
+
+python script_train.py --name hyper-topo-test --topo_geom topo --pos_code 0.0 --use_geom_edge True
 python script_train.py --name hyper-topo-test2 --topo_geom topo
 
 python script_train.py --name hyper-test --node_feats 128 --net_feats 128 --pin_feats 16
 python script_train.py --name hyper-test2 --node_feats 32 --net_feats 128 --pin_feats 16
+
+python script_train.py --name hyper-test 
+python script_train.py --name hyper-tanh --outtype tanh

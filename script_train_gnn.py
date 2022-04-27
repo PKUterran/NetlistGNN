@@ -214,10 +214,12 @@ for epoch in range(0, args.epochs + 1):
                 else torch.cat([homo_graph.ndata['feat'], homo_graph.ndata['pos']], dim=-1)
             )
             batch_labels = homo_graph.ndata['label']
-            weight = 1 / homo_graph.ndata['feat'][:, 6]
-            weight[torch.isinf(weight)] = 0.
-#             loss = loss_f(pred.view(-1) * weight, batch_labels.float() * weight))
-            loss = torch.sum(((pred.view(-1) - batch_labels.float()) ** 2) * weight) / torch.sum(weight)
+            if args.logic_features:
+                loss = loss_f(pred.view(-1), batch_labels.float())
+            else:
+                weight = 1 / homo_graph.ndata['feat'][:, 6]
+                weight[torch.isinf(weight)] = 0.
+                loss = torch.sum(((pred.view(-1) - batch_labels.float()) ** 2) * weight) / torch.sum(weight)
             loss.backward()
             optimizer.step()
         scheduler.step()
@@ -246,7 +248,8 @@ for epoch in range(0, args.epochs + 1):
                 outputdata[p:p + ln, 0], outputdata[p:p + ln, 1], outputdata[p:p + ln, 2:4], outputdata[p:p + ln, 4] = tgt, prd, output_pos, density
                 p += ln
         outputdata = outputdata[:p, :]
-        outputdata[outputdata[:, 4] < 0.5, 1] = outputdata[outputdata[:, 4] < 0.5, 0]
+        if not args.logic_features:
+            outputdata[outputdata[:, 4] < 0.5, 1] = outputdata[outputdata[:, 4] < 0.5, 0]
         printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
         if single_net:
             get_grid_level_corr(outputdata[:, :4], args.binx, args.biny,

@@ -94,7 +94,7 @@ train_dataset_names = [
 ]
 test_dataset_names = [
     # 'superblue16_processed',
-    'superblue19_processed',
+    f'{args.test}_processed',
 ]
 
 train_list_tensors, test_list_tensors = [], []
