@@ -94,9 +94,10 @@ def feature_grid2node(grid_feature: np.ndarray, bin_x, bin_y, xdata, ydata) -> n
 
 
 def load_data(dir_name: str, given_iter, index: int, hashcode: str,
-              graph_scale: int = 1000, bin_x: float = 32, bin_y: float = 40, force_save=False, use_tqdm=True
+              graph_scale: int = 1000, bin_x: float = 32, bin_y: float = 40, force_save=False, use_tqdm=True,
+              app_name='', win_x: float = 32, win_y: float = 40, win_cap=5
               ) -> List[Tuple[dgl.DGLGraph, dgl.DGLHeteroGraph]]:
-    file_path = f'{dir_name}/hetero_{given_iter}.pickle'
+    file_path = f'{dir_name}/hetero{app_name}_{given_iter}.pickle'
     if os.path.exists(file_path) and not force_save:
         with open(file_path, 'rb') as fp:
             list_tuple_graph = pickle.load(fp)
@@ -153,7 +154,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     print('\thomo_graph generated')
 
     def distance_among(a: int, b: int) -> float:
-        return ((xdata[a] + sizdata_x[a] * 0.5 - xdata[b] - sizdata_x[b] * 0.5) ** 2 
+        return ((xdata[a] + sizdata_x[a] * 0.5 - xdata[b] - sizdata_x[b] * 0.5) ** 2
                 + (ydata[a] + sizdata_y[a] * 0.5 - ydata[b] - sizdata_y[b] * 0.5) ** 2) ** 0.5
 
     # hetero_graph
@@ -161,7 +162,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     us4, vs4 = [], []
     off_temps = [5678, 7654, 8888, 10035]
     node_pos_code = np.zeros([n_node, n_dim], dtype=np.float)
-    for off_idx, (x_offset, y_offset) in enumerate([(0, 0), (bin_x / 2, 0), (0, bin_y / 2), (bin_x / 2, bin_y / 2)]):
+    for off_idx, (x_offset, y_offset) in enumerate([(0, 0), (win_x / 2, 0), (0, win_y / 2), (win_x / 2, win_y / 2)]):
         box_node = {}
         iter_sp = tqdm.tqdm(enumerate(zip(sizdata_x, sizdata_y, xdata, ydata)), total=n_node) \
             if use_tqdm else enumerate(zip(sizdata_x, sizdata_y, xdata, ydata))
@@ -172,12 +173,12 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
                 continue
             px += x_offset
             py += y_offset
-            x_1, x_2 = int(px / bin_x), int((px + sx) / bin_x)
-            y_1, y_2 = int(py / bin_y), int((py + sy) / bin_y)
+            x_1, x_2 = int(px / win_x), int((px + sx) / win_x)
+            y_1, y_2 = int(py / win_y), int((py + sy) / win_y)
             for x in range(x_1, x_2 + 1):
                 for y in range(y_1, y_2 + 1):
                     box_node.setdefault(f'{x}-{y}', []).append(i)
-            pos_idx = 20 * (((px + sx * 0.5) / bin_x) % 1.0) + 5 * (((py + sy * 0.5) / bin_y) % 1.0)
+            pos_idx = 20 * (((px + sx * 0.5) / win_x) % 1.0) + 5 * (((py + sy * 0.5) / win_y) % 1.0)
             node_pos_code[i, 0::2] += np.sin(
                 np.array([
                     pos_idx / (off_temps[off_idx] ** (di / n_dim)) for di in list(range(n_dim))[0::2]
@@ -188,21 +189,21 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
                     pos_idx / (off_temps[off_idx] ** ((di - 1) / n_dim)) for di in list(range(n_dim))[1::2]
                 ], dtype=np.float)
             )
-#             print(pos_idx)
-#             print(node_pos_code[i])
-#             exit(123)
+        #             print(pos_idx)
+        #             print(node_pos_code[i])
+        #             exit(123)
         us, vs = [], []
         for nodes in box_node.values():
-            us_, vs_ = node_pairs_among(nodes, max_cap=5)
+            us_, vs_ = node_pairs_among(nodes, max_cap=win_cap)
             us.extend(us_)
             vs.extend(vs_)
         us4.extend(us)
         vs4.extend(vs)
     dis4 = [[distance_among(u, v) / 24] for u, v in zip(us4, vs4)]
-#     print(dis4)
-#     print(np.mean(dis4))
-#     print(np.std(dis4))
-#     exit(123)
+    #     print(dis4)
+    #     print(np.mean(dis4))
+    #     print(np.std(dis4))
+    #     exit(123)
 
     print('\thetero_graph generated 1/2')
 

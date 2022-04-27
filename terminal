@@ -19,6 +19,24 @@ python script_train_ganroute.py --name GanRoute
 # LHNN
 python script_train_LHNN.py --name LHNN
 
+# sensitivity
+## generate
+python script_generate_data.py --app_name "(8, 10)" --win_x 8 --win_y 10
+python script_generate_data.py --app_name "(16, 20)" --win_x 16 --win_y 20
+python script_generate_data.py --app_name "(64, 80)" --win_x 64 --win_y 80
+python script_generate_data.py --app_name "(128, 160)" --win_x 128 --win_y 160
+python script_generate_data.py --app_name "(cap2)" --win_cap 2
+python script_generate_data.py --app_name "(cap10)" --win_cap 10
+python script_generate_data.py --app_name "(cap20)" --win_cap 20
+## train
+python script_train.py --name "hyper(8, 10)" --app_name "(8, 10)" --win_x 8 --win_y 10
+python script_train.py --name "hyper(16, 20)" --app_name "(16, 20)" --win_x 16 --win_y 20
+python script_train.py --name "hyper(64, 80)" --app_name "(64, 80)" --win_x 64 --win_y 80
+python script_train.py --name "hyper(128, 160)" --app_name "(128, 160)" --win_x 128 --win_y 160
+python script_train.py --name "hyper(cap2)" --app_name "(cap2)" --win_cap 2
+python script_train.py --name "hyper(cap2)" --app_name "(cap10)" --win_cap 10
+python script_train.py --name "hyper(cap2)" --app_name "(cap20)" --win_cap 20
+
 # data
 python script_process.py --datadir superblue1
 python script_process.py --datadir superblue2

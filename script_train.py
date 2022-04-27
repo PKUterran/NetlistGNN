@@ -89,6 +89,7 @@ def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name
 
 
 argparser = argparse.ArgumentParser("Training")
+
 argparser.add_argument('--name', type=str, default='main')
 argparser.add_argument('--test', type=str, default='superblue19')
 argparser.add_argument('--epochs', type=int, default=20)
@@ -98,6 +99,11 @@ argparser.add_argument('--lr', type=float, default=2e-4)
 argparser.add_argument('--weight_decay', type=float, default=2e-4)
 argparser.add_argument('--lr_decay', type=float, default=2e-2)
 argparser.add_argument('--beta', type=float, default=0.5)
+
+argparser.add_argument('--app_name', type=str, default='')
+argparser.add_argument('--win_x', type=float, default=32)
+argparser.add_argument('--win_y', type=float, default=40)
+argparser.add_argument('--win_cap', type=int, default=5)
 
 argparser.add_argument('--layers', type=int, default=2)  # 2
 argparser.add_argument('--node_feats', type=int, default=64)  # 64
@@ -172,7 +178,9 @@ for dataset_name in train_dataset_names:
             print(f'Loading {dataset_name}:')
             list_tuple_graph = load_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
                                          graph_scale=args.graph_scale,
-                                         bin_x=args.binx, bin_y=args.biny, force_save=False)
+                                         bin_x=args.binx, bin_y=args.biny, force_save=False,
+                                         app_name=args.app_name,
+                                         win_x=args.win_x, win_y=args.win_y, win_cap=args.win_cap)
             list_tuple_graph = fit_topo_geom(list_tuple_graph)
             train_list_tuple_graph.extend(list_tuple_graph)
 
@@ -182,7 +190,9 @@ for dataset_name in [test_dataset_name]:
             print(f'Loading {dataset_name}:')
             list_tuple_graph = load_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
                                          graph_scale=args.graph_scale,
-                                         bin_x=args.binx, bin_y=args.biny, force_save=False)
+                                         bin_x=args.binx, bin_y=args.biny, force_save=False,
+                                         app_name=args.app_name,
+                                         win_x=args.win_x, win_y=args.win_y, win_cap=args.win_cap)
             list_tuple_graph = fit_topo_geom(list_tuple_graph)
             test_list_tuple_graph.extend(list_tuple_graph)
 n_train_node = sum(map(lambda x: x[0].number_of_nodes(), train_list_tuple_graph))

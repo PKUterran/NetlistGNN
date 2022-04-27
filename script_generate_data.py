@@ -14,6 +14,11 @@ argparser.add_argument('--hashcode', type=str, default='100000')
 argparser.add_argument('--graph_scale', type=int, default=10000)
 argparser.add_argument('--binx', type=int, default=32)
 argparser.add_argument('--biny', type=int, default=40)
+
+argparser.add_argument('--app_name', type=str, default='')
+argparser.add_argument('--win_x', type=float, default=32)
+argparser.add_argument('--win_y', type=float, default=40)
+argparser.add_argument('--win_cap', type=int, default=5)
 args = argparser.parse_args()
 
 dataset_names = [
@@ -36,4 +41,6 @@ for dataset_name in dataset_names:
             print(f'Loading {dataset_name}:')
             load_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
                       graph_scale=args.graph_scale,
-                      bin_x=args.binx, bin_y=args.biny, force_save=True, use_tqdm=True)
+                      bin_x=args.binx, bin_y=args.biny, force_save=True, use_tqdm=True,
+                      app_name=args.app_name,
+                      win_x=args.win_x, win_y=args.win_y, win_cap=args.win_cap)
