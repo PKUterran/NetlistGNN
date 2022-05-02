@@ -8,13 +8,12 @@ from functools import reduce
 import numpy as np
 import tqdm
 
-from scipy.stats import pearsonr, spearmanr, kendalltau
-
 import torch
 import torch.nn as nn
 
 from data.LHNN_data import load_data, SparseBinaryMatrix
 from net.LHNN import LHNN
+from utils.output import printout
 
 import warnings
 
@@ -22,31 +21,6 @@ import warnings
 warnings.filterwarnings("ignore")
 
 logs: List[Dict[str, Any]] = []
-
-
-def printout(arr1, arr2, prefix="", log_prefix=""):
-    pearsonr_rho, pearsonr_pval = pearsonr(arr1, arr2)
-    spearmanr_rho, spearmanr_pval = spearmanr(arr1, arr2)
-    kendalltau_rho, kendalltau_pval = kendalltau(arr1, arr2)
-    mae = np.sum(np.abs(arr1 - arr2)) / len(arr1)
-    delta = np.abs(arr1 - arr2)
-    rmse = np.sqrt(np.sum(np.multiply(delta, delta)) / len(arr1))
-    print(prefix + "pearson", pearsonr_rho, pearsonr_pval)
-    print(prefix + "spearman", spearmanr_rho, spearmanr_pval)
-    print(prefix + "kendall", kendalltau_rho, kendalltau_pval)
-    print(prefix + "MAE", mae)
-    print(prefix + "RMSE", rmse)
-    logs[-1].update({
-        f'{log_prefix}pearson_rho': pearsonr_rho,
-        f'{log_prefix}pearsonr_pval': pearsonr_pval,
-        f'{log_prefix}spearmanr_rho': spearmanr_rho,
-        f'{log_prefix}spearmanr_pval': spearmanr_pval,
-        f'{log_prefix}kendalltau_rho': kendalltau_rho,
-        f'{log_prefix}kendalltau_pval': kendalltau_pval,
-        f'{log_prefix}mae': mae,
-        f'{log_prefix}rmse': rmse,
-    })
-
 
 argparser = argparse.ArgumentParser("Training")
 argparser.add_argument('--name', type=str, default='LHNN')
@@ -92,12 +66,14 @@ train_dataset_names = [
     'superblue11_processed',
     'superblue14_processed',
 ]
+validate_dataset_names = [
+    'superblue16_processed',
+]
 test_dataset_names = [
-    # 'superblue16_processed',
     f'{args.test}_processed',
 ]
 
-train_list_tensors, test_list_tensors = [], []
+train_list_tensors, validate_list_tensors, test_list_tensors = [], [], []
 
 for dataset_name in train_dataset_names:
     for i in range(0, args.itermax):
@@ -106,6 +82,12 @@ for dataset_name in train_dataset_names:
             list_tuple_graph = load_data(f'data/{dataset_name}', i)
             train_list_tensors.extend(list_tuple_graph)
 # exit(123)
+for dataset_name in validate_dataset_names:
+    for i in range(0, args.itermax):
+        if os.path.isfile(f'data/{dataset_name}/iter_{i}_node_label_full_{args.hashcode}_.npy'):
+            print(f'Loading {dataset_name}:')
+            list_tuple_graph = load_data(f'data/{dataset_name}', i)
+            validate_list_tensors.extend(list_tuple_graph)
 for dataset_name in test_dataset_names:
     for i in range(0, args.itermax):
         if os.path.isfile(f'data/{dataset_name}/iter_{i}_node_label_full_{args.hashcode}_.npy'):
@@ -113,6 +95,7 @@ for dataset_name in test_dataset_names:
             list_tuple_graph = load_data(f'data/{dataset_name}', i)
             test_list_tensors.extend(list_tuple_graph)
 n_train_node = sum(map(lambda x: x[1].shape[0], train_list_tensors))
+n_validate_node = sum(map(lambda x: x[1].shape[0], validate_list_tensors))
 n_test_node = sum(map(lambda x: x[1].shape[0], test_list_tensors))
 
 print('##### MODEL #####')
@@ -175,9 +158,11 @@ for epoch in range(0, args.epochs + 1):
                 output_data[p:p + ln, 0], output_data[p:p + ln, 1], output_data[p:p + ln, 2] = tgt, prd, msk
                 p += ln
         output_data = output_data[:p, :]
-        printout(output_data[:, 0], output_data[:, 1], "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
-        printout(output_data[output_data[:, 2] > 0, 0], output_data[output_data[:, 2] > 0, 1],
-                 "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
+        d = printout(output_data[:, 0], output_data[:, 1], "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
+        logs[-1].update(d)
+        d = printout(output_data[output_data[:, 2] > 0, 0], output_data[output_data[:, 2] > 0, 1],
+                     "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
+        logs[-1].update(d)
 
 
     t0 = time()
@@ -188,6 +173,7 @@ for epoch in range(0, args.epochs + 1):
 
     t2 = time()
     evaluate(train_list_tensors, 'train_', n_train_node)
+    evaluate(validate_list_tensors, 'validate_', n_validate_node, single_net=True)
     evaluate(test_list_tensors, 'test_', n_test_node, single_net=True)
     print("\tinference time", time() - t2)
     logs[-1].update({'eval_time': time() - t2})

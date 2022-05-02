@@ -8,85 +8,19 @@ from functools import reduce
 import numpy as np
 import dgl
 
-from scipy.stats import pearsonr, spearmanr, kendalltau
-
 import torch
 import torch.nn as nn
 
 from data.load_data import load_data
 from net.NetlistGNN import NetlistGNN
 from log.draw_scatter import draw_scatter
+from utils.output import printout, get_grid_level_corr
 
 import warnings
 
 warnings.filterwarnings("ignore")
-np.set_printoptions(precision=3,suppress = True) 
+np.set_printoptions(precision=3, suppress=True)
 logs: List[Dict[str, Any]] = []
-
-
-def printout(arr1, arr2, prefix="", log_prefix=""):
-    pearsonr_rho, pearsonr_pval = pearsonr(arr1, arr2)
-    spearmanr_rho, spearmanr_pval = spearmanr(arr1, arr2)
-    kendalltau_rho, kendalltau_pval = kendalltau(arr1, arr2)
-    mae = np.sum(np.abs(arr1 - arr2)) / len(arr1)
-    delta = np.abs(arr1 - arr2)
-    rmse = np.sqrt(np.sum(np.multiply(delta, delta)) / len(arr1))
-    print(prefix + "pearson", pearsonr_rho, pearsonr_pval)
-    print(prefix + "spearman", spearmanr_rho, spearmanr_pval)
-    print(prefix + "kendall", kendalltau_rho, kendalltau_pval)
-    print(prefix + "MAE", mae)
-    print(prefix + "RMSE", rmse)
-    logs[-1].update({
-        f'{log_prefix}pearson_rho': pearsonr_rho,
-        f'{log_prefix}pearsonr_pval': pearsonr_pval,
-        f'{log_prefix}spearmanr_rho': spearmanr_rho,
-        f'{log_prefix}spearmanr_pval': spearmanr_pval,
-        f'{log_prefix}kendalltau_rho': kendalltau_rho,
-        f'{log_prefix}kendalltau_pval': kendalltau_pval,
-        f'{log_prefix}mae': mae,
-        f'{log_prefix}rmse': rmse,
-    })
-
-
-def rademacher(intensity, numindices):
-    arr = np.random.randint(low=0, high=2, size=numindices)
-    return intensity * (2 * arr - 1)
-
-
-def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name=''):
-    nodetarg, nodepred, posx, posy = [posandpred[:, i] for i in range(0, posandpred.shape[1])]
-    cmap_tgt = np.zeros((xgridshape, ygridshape))
-    cmap_prd, supp = np.zeros_like(cmap_tgt), np.zeros_like(cmap_tgt)
-    wmap = 1e-6 * np.ones_like(cmap_tgt)
-    indices = []
-    for i in range(0, posandpred.shape[0]):
-        key1, key2 = int(np.rint(posx[i] / binx)), int(np.rint(posy[i] / biny))
-        if key1 == 0 and key2 == 0:
-            continue
-        wmap[key1][key2] += 1
-        indices += [key2 + key1 * ygridshape]
-        cmap_prd[key1][key2] += nodepred[i]
-        cmap_tgt[key1][key2] += nodetarg[i]
-    supp = np.clip(wmap, 0, 1)
-    indices = list(set(indices))
-    if 0 in indices:
-        indices.remove(0)
-    cmap_tgt = np.divide(cmap_tgt, wmap)
-    cmap_prd = np.divide(cmap_prd, wmap)
-    cmap_prd[0, 0] = 0
-    cmap_tgt[0, 0] = 0
-    wmap[0, 0] = 1e-6
-    nctu, pred = cmap_tgt.flatten(), cmap_prd.flatten()
-    getmask = np.zeros_like(nctu)
-    getmask[indices] = 1
-    nctu, pred = np.multiply(nctu, getmask), np.multiply(pred, getmask)
-#     printout(nctu[indices] + rademacher(1e-6, len(indices)), pred[indices] + rademacher(1e-6, len(indices)),
-#              "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
-    printout(nctu[indices], pred[indices],
-             "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
-    printout(nctu, pred, "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
-    return
-
 
 argparser = argparse.ArgumentParser("Training")
 
@@ -160,7 +94,7 @@ train_dataset_names = [
 validate_dataset_name = 'superblue16_processed'
 test_dataset_name = f'{args.test}_processed'
 
-train_list_tuple_graph, test_list_tuple_graph = [], []
+train_list_tuple_graph, validate_list_tuple_graph, test_list_tuple_graph = [], [], []
 
 
 def fit_topo_geom(ltg):
@@ -184,6 +118,18 @@ for dataset_name in train_dataset_names:
             list_tuple_graph = fit_topo_geom(list_tuple_graph)
             train_list_tuple_graph.extend(list_tuple_graph)
 
+for dataset_name in [validate_dataset_name]:
+    for i in range(0, args.itermax):
+        if os.path.isfile(f'data/{dataset_name}/iter_{i}_node_label_full_{args.hashcode}_.npy'):
+            print(f'Loading {dataset_name}:')
+            list_tuple_graph = load_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
+                                         graph_scale=args.graph_scale,
+                                         bin_x=args.binx, bin_y=args.biny, force_save=False,
+                                         app_name=args.app_name,
+                                         win_x=args.win_x, win_y=args.win_y, win_cap=args.win_cap)
+            list_tuple_graph = fit_topo_geom(list_tuple_graph)
+            validate_list_tuple_graph.extend(list_tuple_graph)
+
 for dataset_name in [test_dataset_name]:
     for i in range(0, args.itermax):
         if os.path.isfile(f'data/{dataset_name}/iter_{i}_node_label_full_{args.hashcode}_.npy'):
@@ -196,6 +142,7 @@ for dataset_name in [test_dataset_name]:
             list_tuple_graph = fit_topo_geom(list_tuple_graph)
             test_list_tuple_graph.extend(list_tuple_graph)
 n_train_node = sum(map(lambda x: x[0].number_of_nodes(), train_list_tuple_graph))
+n_validate_node = sum(map(lambda x: x[0].number_of_nodes(), validate_list_tuple_graph))
 n_test_node = sum(map(lambda x: x[0].number_of_nodes(), test_list_tuple_graph))
 
 print('##### MODEL #####')
@@ -250,6 +197,7 @@ for epoch in range(0, args.epochs + 1):
     print(f'\tLearning rate: {optimizer.state_dict()["param_groups"][0]["lr"]}')
     logs.append({'epoch': epoch})
 
+
     def train(ltg):
         model.train()
         t1 = time()
@@ -273,17 +221,17 @@ for epoch in range(0, args.epochs + 1):
             batch_labels = homo_graph.ndata['label']
             weight = 1 / hetero_graph.nodes['node'].data['hv'][:, 6]
             weight[torch.isinf(weight)] = 0.0
-#             weight[weight < 0.201] = 0.0
-#             weight[weight > 0.499] = 0.0
-#             print(weight)
-#             print(homo_graph.ndata['pos'])
-#             exit(123)
+            #             weight[weight < 0.201] = 0.0
+            #             weight[weight > 0.499] = 0.0
+            #             print(weight)
+            #             print(homo_graph.ndata['pos'])
+            #             exit(123)
             if args.topo_geom != 'topo':
-#                 loss = loss_f(pred.view(-1), batch_labels.float())
-#                 loss = torch.sum(torch.relu((pred.view(-1) - batch_labels.float()) ** 2 - 0.01) * weight) / torch.sum(weight)
+                #                 loss = loss_f(pred.view(-1), batch_labels.float())
+                #                 loss = torch.sum(torch.relu((pred.view(-1) - batch_labels.float()) ** 2 - 0.01) * weight) / torch.sum(weight)
                 loss = torch.sum(((pred.view(-1) - batch_labels.float()) ** 2) * weight) / torch.sum(weight)
-#                 loss = torch.sum(((pred.view(-1) - batch_labels.float()) ** 2) * (weight ** 2)) / torch.sum((weight ** 2))
-#                 loss = torch.sum(torch.abs(pred.view(-1) - batch_labels.float()) * (weight ** 3)) / torch.sum((weight ** 3))
+            #                 loss = torch.sum(((pred.view(-1) - batch_labels.float()) ** 2) * (weight ** 2)) / torch.sum((weight ** 2))
+            #                 loss = torch.sum(torch.abs(pred.view(-1) - batch_labels.float()) * (weight ** 3)) / torch.sum((weight ** 3))
             else:
                 loss = loss_f(pred.view(-1), batch_labels.float())
             losses.append(loss)
@@ -293,6 +241,7 @@ for epoch in range(0, args.epochs + 1):
                 losses.clear()
         scheduler.step()
         print(f"\tTraining time per epoch: {time() - t1}")
+
 
     def evaluate(ltg, set_name, n_node, single_net=False):
         model.eval()
@@ -322,26 +271,31 @@ for epoch in range(0, args.epochs + 1):
                 tgt = output_labels.cpu().data.numpy().flatten()
                 prd = output_predictions.cpu().data.numpy().flatten()
                 ln = len(tgt)
-                outputdata[p:p + ln, 0], outputdata[p:p + ln, 1], outputdata[p:p + ln, 2:4], outputdata[p:p + ln, 4] = tgt, prd, output_pos, density
+                outputdata[p:p + ln, 0], outputdata[p:p + ln, 1], outputdata[p:p + ln, 2:4], outputdata[p:p + ln, 4] = \
+                    tgt, prd, output_pos, density
                 p += ln
         outputdata = outputdata[:p, :]
-#         print(f'\t\ttarget/predict: {np.max(outputdata[:, 0]):.3f}, {np.max(outputdata[:, 1]):.3f}')
-#         exit(123)
+        #         print(f'\t\ttarget/predict: {np.max(outputdata[:, 0]):.3f}, {np.max(outputdata[:, 1]):.3f}')
+        #         exit(123)
         if args.topo_geom != 'topo':
             bad_node = np.logical_or(outputdata[:, 4] < 0.5, outputdata[:, 4] > 17.5)
-#             bad_node = outputdata[:, 4] < 2.5
+            #             bad_node = outputdata[:, 4] < 2.5
             outputdata[bad_node, 1] = outputdata[bad_node, 0]
-#             outputdata = outputdata[np.logical_and(outputdata[:, 4] > 0, outputdata[:, 4] < 5), :]
-#             outputdata = outputdata[outputdata[:, 4] > 5, :]
-#         worst = np.argpartition(np.abs(outputdata[:, 0] - outputdata[:, 1]),-5)[-5:]
-#         print(f'\t\tworst:\n{outputdata[worst, :]}')
-        printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
+        #             outputdata = outputdata[np.logical_and(outputdata[:, 4] > 0, outputdata[:, 4] < 5), :]
+        #             outputdata = outputdata[outputdata[:, 4] > 5, :]
+        #         worst = np.argpartition(np.abs(outputdata[:, 0] - outputdata[:, 1]),-5)[-5:]
+        #         print(f'\t\tworst:\n{outputdata[worst, :]}')
+        d = printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
+        logs[-1].update(d)
         draw_scatter(outputdata[:, 0], outputdata[:, 1], f'{args.name}-{set_name}')
         if single_net:
-            get_grid_level_corr(outputdata[:, :4], args.binx, args.biny,
-                                int(np.rint(np.max(outputdata[:, 2]) / args.binx)) + 1,
-                                int(np.rint(np.max(outputdata[:, 3]) / args.biny)) + 1,
-                                set_name=set_name)
+            d1, d2 = get_grid_level_corr(outputdata[:, :4], args.binx, args.biny,
+                                         int(np.rint(np.max(outputdata[:, 2]) / args.binx)) + 1,
+                                         int(np.rint(np.max(outputdata[:, 3]) / args.biny)) + 1,
+                                         set_name=set_name)
+            logs[-1].update(d1)
+            logs[-1].update(d2)
+
 
     t0 = time()
     if epoch:
@@ -350,6 +304,7 @@ for epoch in range(0, args.epochs + 1):
     logs[-1].update({'train_time': time() - t0})
     t2 = time()
     evaluate(train_list_tuple_graph, 'train_', n_train_node)
+    evaluate(validate_list_tuple_graph, 'validate_', n_validate_node, single_net=True)
     evaluate(test_list_tuple_graph, 'test_', n_test_node, single_net=True)
     # exit(123)
     print("\tinference time", time() - t2)

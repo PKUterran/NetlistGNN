@@ -121,7 +121,7 @@ if __name__ == '__main__':
 #             ds[name] = ret['pearson']
             ds2[name] = ret['rmse']
             ds3[name] = ret['test_rmse']
-            print(f'For {name}:')
+            print(f'For {name} @ epoch {be}:')
             for k, v in ret.items():
                 if len(v) == 0:
                     continue

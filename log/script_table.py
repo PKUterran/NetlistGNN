@@ -17,43 +17,59 @@ def load_json(logs: List[Dict[str, Any]]) -> Dict[str, float]:
     list_test_grid_index_pearson_rho = [log.setdefault('test_grid_index_pearson_rho', None) for log in logs]
     list_test_grid_index_spearmanr_rho = [log.setdefault('test_grid_index_spearmanr_rho', None) for log in logs]
     list_test_grid_index_kendalltau_rho = [log.setdefault('test_grid_index_kendalltau_rho', None) for log in logs]
-    best_epoch = np.argmax(list_test_grid_index_pearson_rho)
-#     best_epoch = -1
+    list_test_node_level_precision = [log.setdefault('test_node_level_precision', None) for log in logs]
+    list_test_node_level_recall = [log.setdefault('test_node_level_recall', None) for log in logs]
+    list_test_node_level_f1 = [log.setdefault('test_node_level_f1', None) for log in logs]
+    list_test_grid_index_precision = [log.setdefault('test_grid_index_precision', None) for log in logs]
+    list_test_grid_index_recall = [log.setdefault('test_grid_index_recall', None) for log in logs]
+    list_test_grid_index_f1 = [log.setdefault('test_grid_index_f1', None) for log in logs]
+
+    list_validate_grid_index_pearson_rho = [log.setdefault('validate_grid_index_pearson_rho', None) for log in logs]
+    if list_validate_grid_index_pearson_rho is not None:
+        best_epoch = np.argmax(list_test_grid_index_pearson_rho)
+    else:
+        best_epoch = -1
 
     return {
         'train_time': list_train_time[best_epoch] / 5,
         'pearson': list_test_node_level_pearson_rho[best_epoch],
         'spearmanr': list_test_node_level_spearmanr_rho[best_epoch],
         'kendalltau': list_test_node_level_kendalltau_rho[best_epoch],
-        'pearson (grid no index)': list_test_grid_no_index_pearson_rho[best_epoch],
-        'spearmanr (grid no index)': list_test_grid_no_index_spearmanr_rho[best_epoch],
-        'kendalltau (grid no index)': list_test_grid_no_index_kendalltau_rho[best_epoch],
+        # 'pearson (grid no index)': list_test_grid_no_index_pearson_rho[best_epoch],
+        # 'spearmanr (grid no index)': list_test_grid_no_index_spearmanr_rho[best_epoch],
+        # 'kendalltau (grid no index)': list_test_grid_no_index_kendalltau_rho[best_epoch],
         'pearson (grid index)': list_test_grid_index_pearson_rho[best_epoch],
         'spearmanr (grid index)': list_test_grid_index_spearmanr_rho[best_epoch],
         'kendalltau (grid index)': list_test_grid_index_kendalltau_rho[best_epoch],
+        'precision': list_test_node_level_precision[best_epoch],
+        'recall': list_test_node_level_recall[best_epoch],
+        'f1-score': list_test_node_level_f1[best_epoch],
+        'precision (grid index)': list_test_grid_index_precision[best_epoch],
+        'recall (grid index)': list_test_grid_index_recall[best_epoch],
+        'f1-score (grid index)': list_test_grid_index_f1[best_epoch],
     }
 
 
 PLT_TUPLES_3 = [
-#     ('GCN', 'superblue19/GCN.json'),
-#     ('GraphSAGE', 'superblue19/SAGE.json'),
-#     ('GAT', 'superblue19/GAT.json'),
-#     ('CongestionNet', 'superblue19/CongestionNet.json'),
-#     ('Ours (o. topo.)', 'superblue19/hyper-topo.json'),
-#     ('line', ''),
+    #     ('GCN', 'superblue19/GCN.json'),
+    #     ('GraphSAGE', 'superblue19/SAGE.json'),
+    #     ('GAT', 'superblue19/GAT.json'),
+    #     ('CongestionNet', 'superblue19/CongestionNet.json'),
+    #     ('Ours (o. topo.)', 'superblue19/hyper-topo.json'),
+    #     ('line', ''),
 
-#     ('GAT (w. geom.)', 'superblue19/GAT-pos.json'),
-#     ('pix2pix', 'superblue19/GanRoute.json'),
-#     ('LHNN', 'superblue19/LHNN.json'),
-#     ('Ours (o. geom.)', 'superblue19/hyper-geom.json'),
-#     ('Ours (small)', 'superblue19/hyper-small.json'),
-#     ('Ours', 'superblue19/hyper.json'),
+    #     ('GAT (w. geom.)', 'superblue19/GAT-pos.json'),
+    #     ('pix2pix', 'superblue19/GanRoute.json'),
+    #     ('LHNN', 'superblue19/LHNN.json'),
+    #     ('Ours (o. geom.)', 'superblue19/hyper-geom.json'),
+    #     ('Ours (small)', 'superblue19/hyper-small.json'),
+    #     ('Ours', 'superblue19/hyper.json'),
     ('(8,10)', 'superblue19/hyper(8,10).json'),
     ('(16,20)', 'superblue19/hyper(16,20).json'),
     ('(32,40)', 'superblue19/hyper.json'),
     ('(64,80)', 'superblue19/hyper(64,80).json'),
     ('(128,160)', 'superblue19/hyper(128,160).json'),
-    
+
     ('2', 'superblue19/hyper(cap2).json'),
     ('5', 'superblue19/hyper.json'),
     ('10', 'superblue19/hyper(cap10).json'),

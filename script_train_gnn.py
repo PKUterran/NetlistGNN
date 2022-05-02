@@ -7,82 +7,18 @@ from functools import reduce
 
 import numpy as np
 
-from scipy.stats import pearsonr, spearmanr, kendalltau
-
 import torch
 import torch.nn as nn
 
 from data.load_data import load_data
 from net.naive import TraditionalGNNModel
+from utils.output import printout, get_grid_level_corr
 
 import warnings
 
 warnings.filterwarnings("ignore")
 
 logs: List[Dict[str, Any]] = []
-
-
-def printout(arr1, arr2, prefix="", log_prefix=""):
-    pearsonr_rho, pearsonr_pval = pearsonr(arr1, arr2)
-    spearmanr_rho, spearmanr_pval = spearmanr(arr1, arr2)
-    kendalltau_rho, kendalltau_pval = kendalltau(arr1, arr2)
-    mae = np.sum(np.abs(arr1 - arr2)) / len(arr1)
-    delta = np.abs(arr1 - arr2)
-    rmse = np.sqrt(np.sum(np.multiply(delta, delta)) / len(arr1))
-    print(prefix + "pearson", pearsonr_rho, pearsonr_pval)
-    print(prefix + "spearman", spearmanr_rho, spearmanr_pval)
-    print(prefix + "kendall", kendalltau_rho, kendalltau_pval)
-    print(prefix + "MAE", mae)
-    print(prefix + "RMSE", rmse)
-    logs[-1].update({
-        f'{log_prefix}pearson_rho': pearsonr_rho,
-        f'{log_prefix}pearsonr_pval': pearsonr_pval,
-        f'{log_prefix}spearmanr_rho': spearmanr_rho,
-        f'{log_prefix}spearmanr_pval': spearmanr_pval,
-        f'{log_prefix}kendalltau_rho': kendalltau_rho,
-        f'{log_prefix}kendalltau_pval': kendalltau_pval,
-        f'{log_prefix}mae': mae,
-        f'{log_prefix}rmse': rmse,
-    })
-
-
-def rademacher(intensity, numindices):
-    arr = np.random.randint(low=0, high=2, size=numindices)
-    return intensity * (2 * arr - 1)
-
-
-def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name=''):
-    nodetarg, nodepred, posx, posy = [posandpred[:, i] for i in range(0, posandpred.shape[1])]
-    cmap_tgt = np.zeros((xgridshape, ygridshape))
-    cmap_prd, supp = np.zeros_like(cmap_tgt), np.zeros_like(cmap_tgt)
-    wmap = 1e-6 * np.ones_like(cmap_tgt)
-    indices = []
-    for i in range(0, posandpred.shape[0]):
-        key1, key2 = int(np.rint(posx[i] / binx)), int(np.rint(posy[i] / biny))
-        if key1 == 0 and key2 == 0:
-            continue
-        wmap[key1][key2] += 1
-        indices += [key2 + key1 * ygridshape]
-        cmap_prd[key1][key2] += nodepred[i]
-        cmap_tgt[key1][key2] += nodetarg[i]
-    supp = np.clip(wmap, 0, 1)
-    indices = list(set(indices))
-    if 0 in indices:
-        indices.remove(0)
-    cmap_tgt = np.divide(cmap_tgt, wmap)
-    cmap_prd = np.divide(cmap_prd, wmap)
-    cmap_prd[0, 0] = 0
-    cmap_tgt[0, 0] = 0
-    wmap[0, 0] = 1e-6
-    nctu, pred = cmap_tgt.flatten(), cmap_prd.flatten()
-    getmask = np.zeros_like(nctu)
-    getmask[indices] = 1
-    nctu, pred = np.multiply(nctu, getmask), np.multiply(pred, getmask)
-    printout(nctu[indices] + rademacher(1e-6, len(indices)), pred[indices] + rademacher(1e-6, len(indices)),
-             "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
-    printout(nctu, pred, "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
-    return
-
 
 argparser = argparse.ArgumentParser("Training")
 argparser.add_argument('--name', type=str, default='GAT')
@@ -150,7 +86,7 @@ train_dataset_names = [
 validate_dataset_name = 'superblue16_processed'
 test_dataset_name = 'superblue19_processed'
 
-train_list_tuple_graph, test_list_tuple_graph = [], []
+train_list_tuple_graph, validate_list_tuple_graph, test_list_tuple_graph = [], [], []
 
 for dataset_name in train_dataset_names:
     for i in range(0, args.itermax):
@@ -161,6 +97,14 @@ for dataset_name in train_dataset_names:
                                          bin_x=args.binx, bin_y=args.biny, force_save=False)
             train_list_tuple_graph.extend(list_tuple_graph)
 # exit(123)
+for dataset_name in [validate_dataset_name]:
+    for i in range(0, args.itermax):
+        if os.path.isfile(f'data/{dataset_name}/iter_{i}_node_label_full_{args.hashcode}_.npy'):
+            print(f'Loading {dataset_name}:')
+            list_tuple_graph = load_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
+                                         graph_scale=args.graph_scale,
+                                         bin_x=args.binx, bin_y=args.biny, force_save=False)
+            validate_list_tuple_graph.extend(list_tuple_graph)
 for dataset_name in [test_dataset_name]:
     for i in range(0, args.itermax):
         if os.path.isfile(f'data/{dataset_name}/iter_{i}_node_label_full_{args.hashcode}_.npy'):
@@ -170,6 +114,7 @@ for dataset_name in [test_dataset_name]:
                                          bin_x=args.binx, bin_y=args.biny, force_save=False)
             test_list_tuple_graph.extend(list_tuple_graph)
 n_train_node = sum(map(lambda x: x[0].number_of_nodes(), train_list_tuple_graph))
+n_validate_node = sum(map(lambda x: x[0].number_of_nodes(), validate_list_tuple_graph))
 n_test_node = sum(map(lambda x: x[0].number_of_nodes(), test_list_tuple_graph))
 
 print('##### MODEL #####')
@@ -202,6 +147,7 @@ for epoch in range(0, args.epochs + 1):
     print(f'\tLearning rate: {optimizer.state_dict()["param_groups"][0]["lr"]}')
     logs.append({'epoch': epoch})
 
+
     def train(ltg):
         model.train()
         t1 = time()
@@ -225,6 +171,7 @@ for epoch in range(0, args.epochs + 1):
         scheduler.step()
         print(f"\tTraining time per epoch: {time() - t1}")
 
+
     def evaluate(ltg, set_name, n_node, single_net=False):
         model.eval()
         print(f'\tEvaluate {set_name}:')
@@ -245,17 +192,22 @@ for epoch in range(0, args.epochs + 1):
                 tgt = output_labels.cpu().data.numpy().flatten()
                 prd = output_predictions.cpu().data.numpy().flatten()
                 ln = len(tgt)
-                outputdata[p:p + ln, 0], outputdata[p:p + ln, 1], outputdata[p:p + ln, 2:4], outputdata[p:p + ln, 4] = tgt, prd, output_pos, density
+                outputdata[p:p + ln, 0], outputdata[p:p + ln, 1], outputdata[p:p + ln, 2:4], outputdata[p:p + ln, 4] = \
+                    tgt, prd, output_pos, density
                 p += ln
         outputdata = outputdata[:p, :]
         if not args.logic_features:
             outputdata[outputdata[:, 4] < 0.5, 1] = outputdata[outputdata[:, 4] < 0.5, 0]
-        printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
+        d = printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
+        logs[-1].update(d)
         if single_net:
-            get_grid_level_corr(outputdata[:, :4], args.binx, args.biny,
-                                int(np.rint(np.max(outputdata[:, 2]) / args.binx)) + 1,
-                                int(np.rint(np.max(outputdata[:, 3]) / args.biny)) + 1,
-                                set_name=set_name)
+            d1, d2 = get_grid_level_corr(outputdata[:, :4], args.binx, args.biny,
+                                         int(np.rint(np.max(outputdata[:, 2]) / args.binx)) + 1,
+                                         int(np.rint(np.max(outputdata[:, 3]) / args.biny)) + 1,
+                                         set_name=set_name)
+            logs[-1].update(d1)
+            logs[-1].update(d2)
+
 
     t0 = time()
     if epoch:
@@ -266,6 +218,7 @@ for epoch in range(0, args.epochs + 1):
 
     t2 = time()
     evaluate(train_list_tuple_graph, 'train_', n_train_node)
+    evaluate(validate_list_tuple_graph, 'validate_', n_validate_node, single_net=True)
     evaluate(test_list_tuple_graph, 'test_', n_test_node, single_net=True)
     print("\tinference time", time() - t2)
     logs[-1].update({'eval_time': time() - t2})
