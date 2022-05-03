@@ -39,13 +39,13 @@ argparser.add_argument('--win_x', type=float, default=32)
 argparser.add_argument('--win_y', type=float, default=40)
 argparser.add_argument('--win_cap', type=int, default=5)
 
-argparser.add_argument('--layers', type=int, default=2)  # 2
+argparser.add_argument('--layers', type=int, default=6)  # 2
 argparser.add_argument('--node_feats', type=int, default=64)  # 64
 argparser.add_argument('--net_feats', type=int, default=128)  # 128
 argparser.add_argument('--pin_feats', type=int, default=16)  # 16
 argparser.add_argument('--edge_feats', type=int, default=4)  # 4
 argparser.add_argument('--topo_geom', type=str, default='both')  # default
-argparser.add_argument('--recurrent', type=bool, default=False)  # False
+argparser.add_argument('--recurrent', type=bool, default=True)  # False
 argparser.add_argument('--use_topo_edge', type=bool, default=True)  # True
 argparser.add_argument('--use_geom_edge', type=bool, default=True)  # True
 argparser.add_argument('--pos_code', type=float, default=0.0)  # 0.0
@@ -80,19 +80,20 @@ config = {
     'EDGE_FEATS': args.edge_feats,
 }
 
+# train_dataset_names = [
+#     'superblue_0425_withHPWL/superblue6_processed',
+# ]
+# validate_dataset_name = 'superblue_0425_withHPWL/superblue6_processed'
+# test_dataset_name = f'superblue_0425_withHPWL/superblue6_processed'
+
 train_dataset_names = [
-    'superblue1_processed',
-    'superblue2_processed',
-    'superblue3_processed',
-    'superblue5_processed',
-    'superblue6_processed',
-    'superblue7_processed',
-    'superblue9_processed',
-    'superblue11_processed',
-    'superblue14_processed',
+    'superblue_0425_withHPWL/superblue6_processed',
+    'superblue_0425_withHPWL/superblue7_processed',
+    'superblue_0425_withHPWL/superblue9_processed',
+    'superblue_0425_withHPWL/superblue14_processed',
 ]
-validate_dataset_name = 'superblue16_processed'
-test_dataset_name = f'{args.test}_processed'
+validate_dataset_name = 'superblue_0425_withHPWL/superblue16_processed'
+test_dataset_name = f'superblue_0425_withHPWL/{args.test}_processed'
 
 train_list_tuple_graph, validate_list_tuple_graph, test_list_tuple_graph = [], [], []
 
@@ -217,9 +218,13 @@ for epoch in range(0, args.epochs + 1):
                 in_pin_feat=hetero_graph.edges['pinned'].data['he'],
                 in_edge_feat=hetero_graph.edges['near'].data['he'],
                 node_net_graph=hetero_graph,
-            ) * args.scalefac
+            )
+            pred = pred * args.scalefac
             batch_labels = hetero_graph.nodes['net'].data['label']
-            loss = loss_f(pred.view(-1), batch_labels.float())
+            degree = hetero_graph.nodes['net'].data['degree'].cpu().data.numpy().flatten()
+            new_degree = hetero_graph.nodes['net'].data['new_degree'].cpu().data.numpy().flatten()
+            good_net = np.abs(degree - new_degree) < 1e-5
+            loss = loss_f(pred.view(-1)[good_net], batch_labels.float()[good_net])
             losses.append(loss)
             if len(losses) >= args.batch or j == n_tuples - 1:
                 sum(losses).backward()
@@ -229,11 +234,11 @@ for epoch in range(0, args.epochs + 1):
         print(f"\tTraining time per epoch: {time() - t1}")
 
 
-    def evaluate(ltg, set_name, n_node, single_net=False):
+    def evaluate(ltg, set_name):
         model.eval()
         print(f'\tEvaluate {set_name}:')
-        outputdata = np.zeros((n_node, 2))
-        p = 0
+        all_tgt = []
+        all_prd = []
         with torch.no_grad():
             for j, (homo_graph, hetero_graph) in enumerate(ltg):
                 homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
@@ -249,18 +254,23 @@ for epoch in range(0, args.epochs + 1):
                     in_pin_feat=hetero_graph.edges['pinned'].data['he'],
                     in_edge_feat=hetero_graph.edges['near'].data['he'],
                     node_net_graph=hetero_graph,
-                ) * args.scalefac
+                )
+                prd = prd * args.scalefac
                 output_labels = hetero_graph.nodes['net'].data['label']
                 output_predictions = prd
                 tgt = output_labels.cpu().data.numpy().flatten()
                 prd = output_predictions.cpu().data.numpy().flatten()
-                ln = len(tgt)
-                outputdata[p:p + ln, 0], outputdata[p:p + ln, 1] = tgt, prd
-                p += ln
-        outputdata = outputdata[:p, :]
-        d = printout_xf1(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
+                degree = hetero_graph.nodes['net'].data['degree'].cpu().data.numpy().flatten()
+                new_degree = hetero_graph.nodes['net'].data['new_degree'].cpu().data.numpy().flatten()
+                good_net = np.abs(degree - new_degree) < 1e-5
+#                 print(np.sum(good_net), len(degree))
+#                 exit(123)
+                all_tgt.extend(tgt[good_net])
+                all_prd.extend(prd[good_net])
+        all_tgt, all_prd = np.array(all_tgt), np.array(all_prd)
+        d = printout_xf1(all_tgt, all_prd, "\t\t", f'{set_name}')
         logs[-1].update(d)
-        # draw_scatter(outputdata[:, 0], outputdata[:, 1], f'{args.name}-{set_name}')
+        draw_scatter(all_tgt, all_prd, f'{args.name}-{set_name}', fig_dir=FIG_DIR)
 
     t0 = time()
     if epoch:
@@ -268,9 +278,9 @@ for epoch in range(0, args.epochs + 1):
             train(train_list_tuple_graph)
     logs[-1].update({'train_time': time() - t0})
     t2 = time()
-    evaluate(train_list_tuple_graph, 'train_', n_train_node)
-    evaluate(validate_list_tuple_graph, 'validate_', n_validate_node, single_net=True)
-    evaluate(test_list_tuple_graph, 'test_', n_test_node, single_net=True)
+    evaluate(train_list_tuple_graph, 'train_')
+    evaluate(validate_list_tuple_graph, 'validate_')
+    evaluate(test_list_tuple_graph, 'test_')
     # exit(123)
     print("\tinference time", time() - t2)
     logs[-1].update({'eval_time': time() - t2})

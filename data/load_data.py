@@ -110,7 +110,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     pdata = np.load(f'{dir_name}/pdata.npy')
     xdata = np.load(f'{dir_name}/xdata_{given_iter}.npy')
     ydata = np.load(f'{dir_name}/ydata_{given_iter}.npy')
-    raw_dir_name = dir_name.split('_')[0]
+    raw_dir_name = dir_name[:-10]
     h_net_density_grid = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_h.npy')
     v_net_density_grid = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_v.npy')
     if os.path.exists(f'{raw_dir_name}/iter_{given_iter}_net2hpwl.npy'):
@@ -223,6 +223,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
             vs.append(net)
             he.append([node_feats[1], node_feats[2], node_feats[3]])
     net_hv = torch.unsqueeze(torch.tensor(net_degree, dtype=torch.float32), dim=-1)
+    net_degree_ = torch.unsqueeze(torch.tensor(net_degree, dtype=torch.float32), dim=-1)
     net_label = torch.unsqueeze(torch.tensor(net_label, dtype=torch.float32), dim=-1)
 
     hetero_graph = dgl.heterograph({
@@ -233,6 +234,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     hetero_graph.nodes['node'].data['hv'] = homo_graph.ndata['feat']
     hetero_graph.nodes['node'].data['pos_code'] = torch.tensor(node_pos_code, dtype=torch.float32)
     hetero_graph.nodes['net'].data['hv'] = net_hv
+    hetero_graph.nodes['net'].data['degree'] = net_degree_
     hetero_graph.nodes['net'].data['label'] = net_label
     # hetero_graph.edges['pins'].data['he'] = torch.tensor(he, dtype=torch.float32)
     hetero_graph.edges['pinned'].data['he'] = torch.tensor(he, dtype=torch.float32)
@@ -242,11 +244,17 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     iter_partition_list = tqdm.tqdm(partition_list, total=len(partition_list)) if use_tqdm else partition_list
     for partition in iter_partition_list:
         partition_set = set(partition)
-        keep_net_ids = set()
+        new_net_degree_dict = {}
         for net_id, node_id in zip(*[ns.tolist() for ns in hetero_graph.edges(etype='pinned')]):
             if node_id in partition_set:
-                keep_net_ids.add(net_id)
-        part_hetero_graph = dgl.node_subgraph(hetero_graph, nodes={'node': partition, 'net': list(keep_net_ids)})
+                new_net_degree_dict.setdefault(net_id, 0)
+                new_net_degree_dict[net_id] += 1
+        part_hetero_graph = dgl.node_subgraph(hetero_graph, nodes={'node': partition, 'net': list(new_net_degree_dict.keys())})
+        new_net_degree = torch.unsqueeze(torch.tensor(list(new_net_degree_dict.values()), dtype=torch.float32), dim=-1)
+        part_hetero_graph.nodes['net'].data['new_degree'] = new_net_degree
+#         print(part_hetero_graph.nodes['net'].data['degree'])
+#         print(part_hetero_graph.nodes['net'].data['new_degree'])
+#         exit(123)
         list_hetero_graph.append(part_hetero_graph)
     print('\thetero_graph generated 2/2')
 

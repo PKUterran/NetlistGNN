@@ -56,21 +56,16 @@ if not args.device == 'cpu':
     torch.cuda.manual_seed(seed)
 
 train_dataset_names = [
-    'superblue1_processed',
-    'superblue2_processed',
-    'superblue3_processed',
-    'superblue5_processed',
-    'superblue6_processed',
-    'superblue7_processed',
-    'superblue9_processed',
-    'superblue11_processed',
-    'superblue14_processed',
+    'superblue_0425_withHPWL/superblue6_processed',
+    'superblue_0425_withHPWL/superblue7_processed',
+    'superblue_0425_withHPWL/superblue9_processed',
+    'superblue_0425_withHPWL/superblue14_processed',
 ]
 validate_dataset_names = [
-    'superblue16_processed',
+    'superblue_0425_withHPWL/superblue16_processed',
 ]
 test_dataset_names = [
-    f'{args.test}_processed',
+    f'superblue_0425_withHPWL/{args.test}_processed',
 ]
 
 train_list_tensors, validate_list_tensors, test_list_tensors = [], [], []
@@ -138,11 +133,11 @@ for epoch in range(0, args.epochs + 1):
         print(f"\tTraining time per epoch: {time() - t1}")
 
 
-    def evaluate(ltg, set_name, n_node, single_net=False):
-        print(f'\tEvaluate {set_name}:')
+    def evaluate(ltg, set_name):
         model.eval()
-        output_data = np.zeros((n_node, 3))
-        p = 0
+        print(f'\tEvaluate {set_name}:')
+        all_tgt = []
+        all_prd = []
         with torch.no_grad():
             for j, (v_n, v_c, a_cc_, h_nc_, labels, mask) in enumerate(ltg):
                 a_cc, h_nc = a_cc_.dense(), h_nc_.dense()
@@ -153,17 +148,11 @@ for epoch in range(0, args.epochs + 1):
                 pred = pred * args.scalefac
                 tgt = labels.cpu().data.numpy().flatten()
                 prd = pred.cpu().data.numpy().flatten()
-                msk = mask.cpu().data.numpy().flatten()
-                ln = len(tgt)
-                output_data[p:p + ln, 0], output_data[p:p + ln, 1], output_data[p:p + ln, 2] = tgt, prd, msk
-                p += ln
-        output_data = output_data[:p, :]
-        d = printout_xf1(output_data[:, 0], output_data[:, 1], "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
+                all_tgt.extend(tgt)
+                all_prd.extend(prd)
+        all_tgt, all_prd = np.array(all_tgt), np.array(all_prd)
+        d = printout_xf1(all_tgt, all_prd, "\t\t", f'{set_name}')
         logs[-1].update(d)
-        d = printout_xf1(output_data[output_data[:, 2] > 0, 0], output_data[output_data[:, 2] > 0, 1],
-                         "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
-        logs[-1].update(d)
-
 
     t0 = time()
     if epoch:
@@ -172,9 +161,9 @@ for epoch in range(0, args.epochs + 1):
     logs[-1].update({'train_time': time() - t0})
 
     t2 = time()
-    evaluate(train_list_tensors, 'train_', n_train_node)
-    evaluate(validate_list_tensors, 'validate_', n_validate_node, single_net=True)
-    evaluate(test_list_tensors, 'test_', n_test_node, single_net=True)
+    evaluate(train_list_tensors, 'train_')
+    evaluate(validate_list_tensors, 'validate_')
+    evaluate(test_list_tensors, 'test_')
     print("\tinference time", time() - t2)
     logs[-1].update({'eval_time': time() - t2})
     with open(f'{LOG_DIR}/{args.name}.json', 'w+') as fp:

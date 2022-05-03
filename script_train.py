@@ -217,7 +217,8 @@ for epoch in range(0, args.epochs + 1):
                 in_pin_feat=hetero_graph.edges['pinned'].data['he'],
                 in_edge_feat=hetero_graph.edges['near'].data['he'],
                 node_net_graph=hetero_graph,
-            ) * args.scalefac
+            )
+            pred = pred * args.scalefac
             batch_labels = homo_graph.ndata['label']
             weight = 1 / hetero_graph.nodes['node'].data['hv'][:, 6]
             weight[torch.isinf(weight)] = 0.0
@@ -263,7 +264,8 @@ for epoch in range(0, args.epochs + 1):
                     in_pin_feat=hetero_graph.edges['pinned'].data['he'],
                     in_edge_feat=hetero_graph.edges['near'].data['he'],
                     node_net_graph=hetero_graph,
-                ) * args.scalefac
+                )
+                prd = prd * args.scalefac
                 density = homo_graph.ndata['feat'][:, 6].cpu().data.numpy()
                 output_labels = homo_graph.ndata['label']
                 output_pos = (homo_graph.ndata['pos'].cpu().data.numpy())
