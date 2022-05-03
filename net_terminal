@@ -1,0 +1,7 @@
+# data
+python script_process.py --datadir superblue_0425_withHPWL/superblue6
+python script_process.py --datadir superblue_0425_withHPWL/superblue7
+python script_process.py --datadir superblue_0425_withHPWL/superblue9
+python script_process.py --datadir superblue_0425_withHPWL/superblue14
+python script_process.py --datadir superblue_0425_withHPWL/superblue16
+python script_process.py --datadir superblue_0425_withHPWL/superblue19

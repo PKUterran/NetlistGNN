@@ -60,7 +60,8 @@ class SparseBinaryMatrix:
 
 
 def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode: str,
-              bin_x: float = 32, bin_y: float = 40, split_size=32, force_save=False, use_tqdm=True):
+              bin_x: float = 32, bin_y: float = 40, split_size=32, force_save=False, use_tqdm=True,
+              enable_net_label=False):
     np.random.seed(0)
     file_path = f'{dir_name}/LHNN_{given_iter}.pickle'
     if os.path.exists(file_path) and not force_save:
@@ -78,6 +79,12 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
     labels = torch.tensor(grid_labels[:, :, index].flatten(), dtype=torch.float32)
     h_net_density = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_h.npy')
     v_net_density = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_v.npy')
+    if enable_net_label:
+        net2hpwl = np.load(f'{raw_dir_name}/iter_{given_iter}_net2hpwl.npy')
+        net2hpwl[net2hpwl < 1e-4] = 1e-4
+        net2hpwl = np.log10(net2hpwl)
+    else:
+        net2hpwl = None
     pin_density = np.zeros_like(h_net_density)
     node_density = np.zeros_like(h_net_density)
     cell_mask = np.zeros_like(h_net_density)
@@ -93,6 +100,8 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
     v_c = torch.zeros([n_grid, 4], dtype=torch.float32)
     a_cc = SparseBinaryMatrix((n_grid, n_grid))
     h_nc = SparseBinaryMatrix((n_grid, n_net))
+    net_labels = torch.tensor(net2hpwl, dtype=torch.float32) if net2hpwl is not None \
+        else torch.zeros([n_node], dtype=torch.float32)
 
     for x, y in zip(xdata, ydata):
         if x < 1e-5 and y < 1e-5:
@@ -109,7 +118,7 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
         return int(idx_ / n_y_grid), idx_ % n_y_grid
 
     good_net_ids = []
-    for i, (_, list_node_feats) in tqdm.tqdm(enumerate(edge.items()), total=len(edge.keys())):
+    for i, list_node_feats in tqdm.tqdm(edge.items(), total=len(edge.keys())):
         n_pin = len(list_node_feats)
         xs, ys = [], []
         for node, pin_px, pin_py, _ in list_node_feats:
@@ -196,8 +205,12 @@ def dump_data(dir_name: str, raw_dir_name: str, given_iter, index: int, hashcode
         v_c_ = v_c[c_split, :]
         a_cc_ = a_cc.slice(c_split, c_split)
         labels_ = labels[c_split]
+        net_labels_ = net_labels[net_set]
         mask_ = mask[c_split]
-        list_tensors.append((v_n_, v_c_, a_cc_, h_nc_, labels_, mask_))
+        if enable_net_label:
+            list_tensors.append((v_n_, v_c_, a_cc_, h_nc_, net_labels_, mask_))
+        else:
+            list_tensors.append((v_n_, v_c_, a_cc_, h_nc_, labels_, mask_))
 
     with open(file_path, 'wb+') as fp:
         pickle.dump(list_tensors, fp)
