@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import dgl
 from dgl.nn.pytorch import NNConv, SAGEConv, GATConv, HeteroGraphConv, GraphConv, CFConv
-from typing import Tuple, Dict, Any, List
+from typing import Tuple, Dict, Any, List, Union
 
 
 class NodeNetGNN(nn.Module):
@@ -110,12 +110,15 @@ class NetlistGNN(nn.Module):
         self.output_layer_1 = nn.Linear(self.in_node_feats + self.hidden_node_feats, self.hidden_node_feats)
         self.output_layer_2 = nn.Linear(self.hidden_node_feats, self.hidden_node_feats)
         self.output_layer_3 = nn.Linear(self.hidden_node_feats, self.n_target)
+        self.output_layer_net_1 = nn.Linear(self.in_net_feats + self.hidden_net_feats, self.hidden_net_feats)
+        self.output_layer_net_2 = nn.Linear(self.hidden_net_feats, self.hidden_net_feats)
+        self.output_layer_net_3 = nn.Linear(self.hidden_net_feats, 1)
         self.activation = activation
 
     def forward(self, in_node_feat: torch.Tensor, in_net_feat: torch.Tensor,
                 in_pin_feat: torch.Tensor, in_edge_feat: torch.Tensor,
-                node_net_graph: dgl.DGLHeteroGraph = None,
-                ) -> torch.Tensor:
+                node_net_graph: dgl.DGLHeteroGraph = None
+                ) -> Tuple[torch.Tensor, torch.Tensor]:
         node_feat = F.leaky_relu(self.node_lin(in_node_feat))
         net_feat = F.leaky_relu(self.net_lin(in_net_feat))
         pin_feat = F.leaky_relu(self.pin_lin(in_pin_feat))
@@ -130,20 +133,22 @@ class NetlistGNN(nn.Module):
                     node_net_graph, node_feat, net_feat, pin_feat, edge_feat)
             node_feat, net_feat = F.leaky_relu(node_feat), F.leaky_relu(net_feat)
 
-#         output_predictions = self.output_layer_3(torch.tanh(
-#             self.output_layer_2(torch.tanh(
-#                 self.output_layer_1(torch.cat([in_node_feat, node_feat], dim=-1))
-#             ))
-#         ))
         output_predictions = self.output_layer_3(F.leaky_relu(
             self.output_layer_2(F.leaky_relu(
                 self.output_layer_1(torch.cat([in_node_feat, node_feat], dim=-1))
             ))
         ))
+        output_net_predictions = self.output_layer_net_3(F.leaky_relu(
+            self.output_layer_net_2(F.leaky_relu(
+                self.output_layer_net_1(torch.cat([in_net_feat, net_feat], dim=-1))
+            ))
+        ))
         if self.activation == 'sig':
             output_predictions = torch.sigmoid(output_predictions)
+            output_net_predictions = torch.sigmoid(output_net_predictions)
         elif self.activation == 'tanh':
             output_predictions = torch.tanh(output_predictions)
+            output_net_predictions = torch.tanh(output_net_predictions)
         else:
             assert False, f'Undefined activation {self.activation}'
-        return output_predictions
+        return output_predictions, output_net_predictions

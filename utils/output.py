@@ -5,6 +5,31 @@ from typing import Dict, Any, Tuple
 from sklearn.metrics import precision_score, recall_score, f1_score
 
 
+def printout_xf1(arr1, arr2, prefix="", log_prefix="") -> Dict[str, Any]:
+    pearsonr_rho, pearsonr_pval = pearsonr(arr1, arr2)
+    spearmanr_rho, spearmanr_pval = spearmanr(arr1, arr2)
+    kendalltau_rho, kendalltau_pval = kendalltau(arr1, arr2)
+    mae = np.sum(np.abs(arr1 - arr2)) / len(arr1)
+    delta = np.abs(arr1 - arr2)
+    rmse = np.sqrt(np.sum(np.multiply(delta, delta)) / len(arr1))
+
+    print(prefix + "pearson", pearsonr_rho, pearsonr_pval)
+    print(prefix + "spearman", spearmanr_rho, spearmanr_pval)
+    print(prefix + "kendall", kendalltau_rho, kendalltau_pval)
+    print(prefix + "MAE", mae)
+    print(prefix + "RMSE", rmse)
+    return {
+        f'{log_prefix}pearson_rho': pearsonr_rho,
+        f'{log_prefix}pearsonr_pval': pearsonr_pval,
+        f'{log_prefix}spearmanr_rho': spearmanr_rho,
+        f'{log_prefix}spearmanr_pval': spearmanr_pval,
+        f'{log_prefix}kendalltau_rho': kendalltau_rho,
+        f'{log_prefix}kendalltau_pval': kendalltau_pval,
+        f'{log_prefix}mae': mae,
+        f'{log_prefix}rmse': rmse,
+    }
+
+
 def printout(arr1, arr2, prefix="", log_prefix="") -> Dict[str, Any]:
     pearsonr_rho, pearsonr_pval = pearsonr(arr1, arr2)
     spearmanr_rho, spearmanr_pval = spearmanr(arr1, arr2)

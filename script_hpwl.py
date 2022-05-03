@@ -14,7 +14,7 @@ import torch.nn as nn
 from data.load_data import load_data
 from net.NetlistGNN import NetlistGNN
 from log.draw_scatter import draw_scatter
-from utils.output import printout, get_grid_level_corr
+from utils.output import printout_xf1
 
 import warnings
 
@@ -180,10 +180,10 @@ else:
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=(1 - args.lr_decay))
 
-LOG_DIR = f'log/{args.test}'
+LOG_DIR = f'log/hpwl-{args.test}'
 if not os.path.isdir(LOG_DIR):
     os.mkdir(LOG_DIR)
-FIG_DIR = 'log/temp'
+FIG_DIR = 'log/hpwl-temp'
 if not os.path.isdir(FIG_DIR):
     os.mkdir(FIG_DIR)
 
@@ -211,29 +211,15 @@ for epoch in range(0, args.epochs + 1):
                 in_node_feat += args.pos_code * hetero_graph.nodes['node'].data['pos_code']
             if args.topo_geom == 'topo':
                 in_node_feat = in_node_feat[:, [0, 1, 2, 7, 8, 9]]
-            pred, _ = model.forward(
+            _, pred = model.forward(
                 in_node_feat=in_node_feat,
                 in_net_feat=hetero_graph.nodes['net'].data['hv'],
                 in_pin_feat=hetero_graph.edges['pinned'].data['he'],
                 in_edge_feat=hetero_graph.edges['near'].data['he'],
                 node_net_graph=hetero_graph,
             ) * args.scalefac
-            batch_labels = homo_graph.ndata['label']
-            weight = 1 / hetero_graph.nodes['node'].data['hv'][:, 6]
-            weight[torch.isinf(weight)] = 0.0
-            #             weight[weight < 0.201] = 0.0
-            #             weight[weight > 0.499] = 0.0
-            #             print(weight)
-            #             print(homo_graph.ndata['pos'])
-            #             exit(123)
-            if args.topo_geom != 'topo':
-                #                 loss = loss_f(pred.view(-1), batch_labels.float())
-                #                 loss = torch.sum(torch.relu((pred.view(-1) - batch_labels.float()) ** 2 - 0.01) * weight) / torch.sum(weight)
-                loss = torch.sum(((pred.view(-1) - batch_labels.float()) ** 2) * weight) / torch.sum(weight)
-            #                 loss = torch.sum(((pred.view(-1) - batch_labels.float()) ** 2) * (weight ** 2)) / torch.sum((weight ** 2))
-            #                 loss = torch.sum(torch.abs(pred.view(-1) - batch_labels.float()) * (weight ** 3)) / torch.sum((weight ** 3))
-            else:
-                loss = loss_f(pred.view(-1), batch_labels.float())
+            batch_labels = hetero_graph.nodes['net'].data['label']
+            loss = loss_f(pred.view(-1), batch_labels.float())
             losses.append(loss)
             if len(losses) >= args.batch or j == n_tuples - 1:
                 sum(losses).backward()
@@ -246,7 +232,7 @@ for epoch in range(0, args.epochs + 1):
     def evaluate(ltg, set_name, n_node, single_net=False):
         model.eval()
         print(f'\tEvaluate {set_name}:')
-        outputdata = np.zeros((n_node, 5))
+        outputdata = np.zeros((n_node, 2))
         p = 0
         with torch.no_grad():
             for j, (homo_graph, hetero_graph) in enumerate(ltg):
@@ -257,45 +243,24 @@ for epoch in range(0, args.epochs + 1):
                     in_node_feat += args.pos_code * hetero_graph.nodes['node'].data['pos_code']
                 if args.topo_geom == 'topo':
                     in_node_feat = in_node_feat[:, [0, 1, 2, 7, 8, 9]]
-                prd, _ = model.forward(
+                _, prd = model.forward(
                     in_node_feat=in_node_feat,
                     in_net_feat=hetero_graph.nodes['net'].data['hv'],
                     in_pin_feat=hetero_graph.edges['pinned'].data['he'],
                     in_edge_feat=hetero_graph.edges['near'].data['he'],
                     node_net_graph=hetero_graph,
                 ) * args.scalefac
-                density = homo_graph.ndata['feat'][:, 6].cpu().data.numpy()
-                output_labels = homo_graph.ndata['label']
-                output_pos = (homo_graph.ndata['pos'].cpu().data.numpy())
+                output_labels = hetero_graph.nodes['net'].data['label']
                 output_predictions = prd
                 tgt = output_labels.cpu().data.numpy().flatten()
                 prd = output_predictions.cpu().data.numpy().flatten()
                 ln = len(tgt)
-                outputdata[p:p + ln, 0], outputdata[p:p + ln, 1], outputdata[p:p + ln, 2:4], outputdata[p:p + ln, 4] = \
-                    tgt, prd, output_pos, density
+                outputdata[p:p + ln, 0], outputdata[p:p + ln, 1] = tgt, prd
                 p += ln
         outputdata = outputdata[:p, :]
-        #         print(f'\t\ttarget/predict: {np.max(outputdata[:, 0]):.3f}, {np.max(outputdata[:, 1]):.3f}')
-        #         exit(123)
-        if args.topo_geom != 'topo':
-            bad_node = np.logical_or(outputdata[:, 4] < 0.5, outputdata[:, 4] > 17.5)
-            #             bad_node = outputdata[:, 4] < 2.5
-            outputdata[bad_node, 1] = outputdata[bad_node, 0]
-        #             outputdata = outputdata[np.logical_and(outputdata[:, 4] > 0, outputdata[:, 4] < 5), :]
-        #             outputdata = outputdata[outputdata[:, 4] > 5, :]
-        #         worst = np.argpartition(np.abs(outputdata[:, 0] - outputdata[:, 1]),-5)[-5:]
-        #         print(f'\t\tworst:\n{outputdata[worst, :]}')
-        d = printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
+        d = printout_xf1(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
         logs[-1].update(d)
         # draw_scatter(outputdata[:, 0], outputdata[:, 1], f'{args.name}-{set_name}')
-        if single_net:
-            d1, d2 = get_grid_level_corr(outputdata[:, :4], args.binx, args.biny,
-                                         int(np.rint(np.max(outputdata[:, 2]) / args.binx)) + 1,
-                                         int(np.rint(np.max(outputdata[:, 3]) / args.biny)) + 1,
-                                         set_name=set_name)
-            logs[-1].update(d1)
-            logs[-1].update(d2)
-
 
     t0 = time()
     if epoch:

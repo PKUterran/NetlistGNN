@@ -90,7 +90,7 @@ class LHNN(nn.Module):
         self.lattice_mp = LatticeMPBlock(dim)
         self.lattice_mp_s1 = LatticeMPBlock(dim)
         self.lattice_mp_s2 = LatticeMPBlock(dim)
-        self.v4_readout = nn.Linear(dim, 1)
+        self.v3n_readout = nn.Linear(dim, 1)
         self.v6_readout = nn.Linear(dim, 1)
 
     def forward(self, v_n: torch.Tensor, v_c: torch.Tensor, g_nc: torch.Tensor, g_cn: torch.Tensor, na_cc: torch.Tensor
@@ -101,9 +101,9 @@ class LHNN(nn.Module):
         v4_c = self.lattice_mp.forward(v3_c, na_cc)
         v5_c = self.lattice_mp_s1.forward(v4_c, na_cc)
         v6_c = self.lattice_mp_s2.forward(v5_c, na_cc)
-        v4_out = F.sigmoid(self.v4_readout(v4_c))
-        v6_out = F.sigmoid(self.v4_readout(v6_c))
-        return v6_out, v4_out
+        v3n_out = F.tanh(self.v3n_readout(v3_n))
+        v6_out = F.sigmoid(self.v6_readout(v6_c))
+        return v6_out, v3n_out
 
     @staticmethod
     def generate_adj(a_cc: torch.Tensor, h_nc: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:

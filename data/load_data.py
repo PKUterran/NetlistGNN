@@ -113,6 +113,12 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     raw_dir_name = dir_name.split('_')[0]
     h_net_density_grid = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_h.npy')
     v_net_density_grid = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_v.npy')
+    if os.path.exists(f'{raw_dir_name}/iter_{given_iter}_net2hpwl.npy'):
+        net2hpwl = np.load(f'{raw_dir_name}/iter_{given_iter}_net2hpwl.npy')
+        net2hpwl[net2hpwl < 1e-4] = 1e-4
+        net2hpwl = np.log10(net2hpwl)
+    else:
+        net2hpwl = None
     pin_density_grid = get_pin_density(h_net_density_grid.shape, bin_x, bin_y, xdata, ydata, edge)
     node_density_grid = get_node_density(h_net_density_grid.shape, bin_x, bin_y, xdata, ydata)
 
@@ -208,14 +214,16 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     print('\thetero_graph generated 1/2')
 
     us, vs, he = [], [], []
-    net_degree = []
+    net_degree, net_label = [], []
     for net, list_node_feats in edge.items():
         net_degree.append(len(list_node_feats))
+        net_label.append(net2hpwl[net] if net2hpwl is not None else 0)
         for node_feats in list_node_feats:
             us.append(node_feats[0])
             vs.append(net)
             he.append([node_feats[1], node_feats[2], node_feats[3]])
     net_hv = torch.unsqueeze(torch.tensor(net_degree, dtype=torch.float32), dim=-1)
+    net_label = torch.unsqueeze(torch.tensor(net_label, dtype=torch.float32), dim=-1)
 
     hetero_graph = dgl.heterograph({
         ('node', 'near', 'node'): (us4, vs4),
@@ -225,6 +233,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     hetero_graph.nodes['node'].data['hv'] = homo_graph.ndata['feat']
     hetero_graph.nodes['node'].data['pos_code'] = torch.tensor(node_pos_code, dtype=torch.float32)
     hetero_graph.nodes['net'].data['hv'] = net_hv
+    hetero_graph.nodes['net'].data['label'] = net_label
     # hetero_graph.edges['pins'].data['he'] = torch.tensor(he, dtype=torch.float32)
     hetero_graph.edges['pinned'].data['he'] = torch.tensor(he, dtype=torch.float32)
     hetero_graph.edges['near'].data['he'] = torch.tensor(dis4, dtype=torch.float32)
