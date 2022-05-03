@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from typing import Dict, Tuple, List, Any
 
 
-def load_json(logs: List[Dict[str, Any]]) -> Dict[str, float]:
+def load_json(logs: List[Dict[str, Any]]) -> Tuple[Dict[str, float], int]:
     list_epoch = [log['epoch'] for log in logs]
     list_train_time = [log['train_time'] for log in logs]
     list_test_node_level_pearson_rho = [log.setdefault('test_node_level_pearson_rho', None) for log in logs]
@@ -24,9 +24,12 @@ def load_json(logs: List[Dict[str, Any]]) -> Dict[str, float]:
     list_test_grid_index_recall = [log.setdefault('test_grid_index_recall', None) for log in logs]
     list_test_grid_index_f1 = [log.setdefault('test_grid_index_f1', None) for log in logs]
 
-    list_validate_grid_index_pearson_rho = [log.setdefault('validate_grid_index_pearson_rho', None) for log in logs]
-    if list_validate_grid_index_pearson_rho is not None:
-        best_epoch = np.argmax(list_test_grid_index_pearson_rho)
+#     list_validate_grid_index_pearson_rho = [log.setdefault('validate_grid_index_pearson_rho', None) for log in logs]
+#     if list_validate_grid_index_pearson_rho[0]:
+#         best_epoch = np.argmax(list_validate_grid_index_pearson_rho)
+    list_validate_grid_index_rmse = [log.setdefault('validate_grid_index_rmse', None) for log in logs]
+    if list_validate_grid_index_rmse[0]:
+        best_epoch = np.argmin(list_validate_grid_index_rmse)
     else:
         best_epoch = -1
 
@@ -47,23 +50,25 @@ def load_json(logs: List[Dict[str, Any]]) -> Dict[str, float]:
         'precision (grid index)': list_test_grid_index_precision[best_epoch],
         'recall (grid index)': list_test_grid_index_recall[best_epoch],
         'f1-score (grid index)': list_test_grid_index_f1[best_epoch],
-    }
+    }, best_epoch
 
 
 PLT_TUPLES_3 = [
-    #     ('GCN', 'superblue19/GCN.json'),
-    #     ('GraphSAGE', 'superblue19/SAGE.json'),
-    #     ('GAT', 'superblue19/GAT.json'),
-    #     ('CongestionNet', 'superblue19/CongestionNet.json'),
-    #     ('Ours (o. topo.)', 'superblue19/hyper-topo.json'),
-    #     ('line', ''),
+    ('GCN', 'superblue19/GCN.json'),
+    ('GraphSAGE', 'superblue19/SAGE.json'),
+    ('GAT', 'superblue19/GAT.json'),
+    ('CongestionNet', 'superblue19/CongestionNet.json'),
+    ('Ours (o. topo.)', 'superblue19/hyper-topo.json'),
+    ('line', ''),
 
-    #     ('GAT (w. geom.)', 'superblue19/GAT-pos.json'),
-    #     ('pix2pix', 'superblue19/GanRoute.json'),
-    #     ('LHNN', 'superblue19/LHNN.json'),
-    #     ('Ours (o. geom.)', 'superblue19/hyper-geom.json'),
-    #     ('Ours (small)', 'superblue19/hyper-small.json'),
-    #     ('Ours', 'superblue19/hyper.json'),
+    ('GAT (w. geom.)', 'superblue19/GAT-pos.json'),
+    ('pix2pix', 'superblue19/GanRoute.json'),
+    ('LHNN', 'superblue19/LHNN.json'),
+    ('Ours (o. geom.)', 'superblue19/hyper-geom.json'),
+#     ('Ours (small)', 'superblue19/hyper-small.json'),
+    ('Ours', 'superblue19/hyper.json'),
+    ('line', ''),
+    
     ('(8,10)', 'superblue19/hyper(8,10).json'),
     ('(16,20)', 'superblue19/hyper(16,20).json'),
     ('(32,40)', 'superblue19/hyper.json'),
@@ -86,8 +91,8 @@ if __name__ == '__main__':
             try:
                 with open(path) as fp:
                     d = json.load(fp)
-                ret = load_json(d)
-                print(f'{name}', end='')
+                ret, be = load_json(d)
+                print(f'{name}@{be}', end='')
                 print(f'{name}', end='', file=fp1)
                 for _, v in ret.items():
                     if v is None:

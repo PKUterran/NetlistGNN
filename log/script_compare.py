@@ -20,18 +20,30 @@ def get_tendency(logs: List[Dict[str, Any]]) ->  Tuple[Dict[str, Any], int]:
         list_train_node_level_pearson_rho = [log['train_node_level_pearson_rho'] for log in logs]
         list_train_node_level_spearmanr_rho = [log['train_node_level_spearmanr_rho'] for log in logs]
         list_train_node_level_kendalltau_rho = [log['train_node_level_kendalltau_rho'] for log in logs]
+        list_train_node_level_precision = [log['test_node_level_precision'] for log in logs]
+        list_train_node_level_recall = [log['test_node_level_recall'] for log in logs]
+        list_train_node_level_f1 = [log['test_node_level_f1'] for log in logs]
         list_test_node_level_pearson_rho = [log['test_node_level_pearson_rho'] for log in logs]
         list_test_node_level_spearmanr_rho = [log['test_node_level_spearmanr_rho'] for log in logs]
         list_test_node_level_kendalltau_rho = [log['test_node_level_kendalltau_rho'] for log in logs]
+        list_test_node_level_precision = [log['test_node_level_precision'] for log in logs]
+        list_test_node_level_recall = [log['test_node_level_recall'] for log in logs]
+        list_test_node_level_f1 = [log['test_node_level_f1'] for log in logs]
     except KeyError:
         list_train_node_level_rmse = [log['train_grid_index_rmse'] for log in logs]
         list_test_grid_index_rmse = [log['test_grid_index_rmse'] for log in logs]
         list_train_node_level_pearson_rho = []
         list_train_node_level_spearmanr_rho = []
         list_train_node_level_kendalltau_rho = []
+        list_train_node_level_precision = []
+        list_train_node_level_recall = []
+        list_train_node_level_f1 = []
         list_test_node_level_pearson_rho = []
         list_test_node_level_spearmanr_rho = []
         list_test_node_level_kendalltau_rho = []
+        list_test_node_level_precision = []
+        list_test_node_level_recall = []
+        list_test_node_level_f1 = []
     # list_test_node_level_mae = [log['test_node_level_mae'] for log in logs]
     # list_test_node_level_rmse = [log['test_node_level_rmse'] for log in logs]
 #     list_test_grid_no_index_pearson_rho = [log['test_grid_no_index_pearson_rho'] for log in logs]
@@ -44,6 +56,9 @@ def get_tendency(logs: List[Dict[str, Any]]) ->  Tuple[Dict[str, Any], int]:
     list_test_grid_index_kendalltau_rho = [log['test_grid_index_kendalltau_rho'] for log in logs]
     # list_test_grid_index_mae = [log['test_grid_index_mae'] for log in logs]
     # list_test_grid_index_rmse = [log['test_grid_index_rmse'] for log in logs]
+    list_test_grid_index_precision = [log['test_grid_index_precision'] for log in logs]
+    list_test_grid_index_recall = [log['test_grid_index_recall'] for log in logs]
+    list_test_grid_index_f1 = [log['test_grid_index_f1'] for log in logs]
     best_epoch = -1
 
     return {
@@ -59,6 +74,12 @@ def get_tendency(logs: List[Dict[str, Any]]) ->  Tuple[Dict[str, Any], int]:
         'pearson (grid index)': list_test_grid_index_pearson_rho,
         'spearmanr (grid index)': list_test_grid_index_spearmanr_rho,
         'kendalltau (grid index)': list_test_grid_index_kendalltau_rho,
+        'precision': list_test_node_level_precision,
+        'recall': list_test_node_level_recall,
+        'f1-score': list_test_node_level_f1,
+        'precision (grid index)': list_test_grid_index_precision,
+        'recall (grid index)': list_test_grid_index_recall,
+        'f1-score (grid index)': list_test_grid_index_f1,
     }, best_epoch
 
 
@@ -110,6 +131,9 @@ if __name__ == '__main__':
     ds_k = {}
     ds2 = {}
     ds3 = {}
+    ds_pre = {}
+    ds_rec = {}
+    ds_f1 = {}
     for name, path in PLT_TUPLES:
         try:
             with open(path) as fp:
@@ -121,6 +145,9 @@ if __name__ == '__main__':
 #             ds[name] = ret['pearson']
             ds2[name] = ret['rmse']
             ds3[name] = ret['test_rmse']
+            ds_pre[name] = ret['precision (grid index)']
+            ds_rec[name] = ret['recall (grid index)']
+            ds_f1[name] = ret['f1-score (grid index)']
             print(f'For {name} @ epoch {be}:')
             for k, v in ret.items():
                 if len(v) == 0:
@@ -128,8 +155,13 @@ if __name__ == '__main__':
                 print(f'\t{k}: {v[be]:.3f}')
         except FileNotFoundError:
             print(f'For {name}: not found')
+        except KeyError:
+            print(f'For {name}: key error')
     plt_compare(ds_p, fig_path='figures/compare_pearson.png')
     plt_compare(ds_s, fig_path='figures/compare_spearmanr.png')
     plt_compare(ds_k, fig_path='figures/compare_kendalltau.png')
     plt_compare(ds2, fig_path='figures/compare_loss.png')
     plt_compare(ds3, fig_path='figures/compare_eval.png')
+    plt_compare(ds_pre, fig_path='figures/compare_precision.png')
+    plt_compare(ds_rec, fig_path='figures/compare_recall.png')
+    plt_compare(ds_f1, fig_path='figures/compare_f1-score.png')
