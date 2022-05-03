@@ -215,16 +215,34 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
 
     us, vs, he = [], [], []
     net_degree, net_label = [], []
+    net_span_feat = []
     for net, list_node_feats in edge.items():
         net_degree.append(len(list_node_feats))
         net_label.append(net2hpwl[net] if net2hpwl is not None else 0)
-        for node_feats in list_node_feats:
-            us.append(node_feats[0])
+        n_pin = len(list_node_feats)
+        xs, ys = [], []
+        for node, pin_px, pin_py, pin_io in list_node_feats:
+            us.append(node)
             vs.append(net)
-            he.append([node_feats[1], node_feats[2], node_feats[3]])
-    net_hv = torch.unsqueeze(torch.tensor(net_degree, dtype=torch.float32), dim=-1)
+            he.append([pin_px, pin_py, pin_io])
+            px, py = node_pos[node, :]
+            if not px and not py:
+                continue
+            xs.append(int(px / bin_x))
+            ys.append(int(py / bin_y))
+        if len(xs) == 0:
+            span_v = span_h = 0
+        else:
+            min_x, max_x, min_y, max_y = min(xs), max(xs), min(ys), max(ys)
+            span_h = max_x - min_x + 1
+            span_v = max_y - min_y + 1
+        net_span_feat.append([span_v, span_h, n_pin, span_v * span_h])
     net_degree_ = torch.unsqueeze(torch.tensor(net_degree, dtype=torch.float32), dim=-1)
+    net_span_feat_ = torch.tensor(net_span_feat, dtype=torch.float32)
     net_label = torch.unsqueeze(torch.tensor(net_label, dtype=torch.float32), dim=-1)
+    net_hv = torch.cat([net_degree_, net_span_feat_], dim=-1)
+    print(net_hv.shape)
+    exit(123)
 
     hetero_graph = dgl.heterograph({
         ('node', 'near', 'node'): (us4, vs4),

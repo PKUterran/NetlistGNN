@@ -151,6 +151,7 @@ in_net_feats = train_list_tuple_graph[0][1].nodes['net'].data['hv'].shape[1]
 in_pin_feats = train_list_tuple_graph[0][1].edges['pinned'].data['he'].shape[1]
 if args.topo_geom == 'topo':
     in_node_feats = 6
+    in_net_feats = 1
 model = NetlistGNN(
     in_node_feats=in_node_feats,
     in_net_feats=in_net_feats,
@@ -207,13 +208,15 @@ for epoch in range(0, args.epochs + 1):
             homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
             optimizer.zero_grad()
             in_node_feat = hetero_graph.nodes['node'].data['hv']
+            in_net_feat = hetero_graph.nodes['net'].data['hv']
             if args.pos_code > 1e-5 and args.topo_geom != 'topo':
                 in_node_feat += args.pos_code * hetero_graph.nodes['node'].data['pos_code']
             if args.topo_geom == 'topo':
                 in_node_feat = in_node_feat[:, [0, 1, 2, 7, 8, 9]]
+                in_net_feat = in_net_feat[:, [0]]
             pred, _ = model.forward(
                 in_node_feat=in_node_feat,
-                in_net_feat=hetero_graph.nodes['net'].data['hv'],
+                in_net_feat=in_net_feat,
                 in_pin_feat=hetero_graph.edges['pinned'].data['he'],
                 in_edge_feat=hetero_graph.edges['near'].data['he'],
                 node_net_graph=hetero_graph,
