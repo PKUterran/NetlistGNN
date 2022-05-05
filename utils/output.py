@@ -34,8 +34,10 @@ def printout(arr1, arr2, prefix="", log_prefix="") -> Dict[str, Any]:
     pearsonr_rho, pearsonr_pval = pearsonr(arr1, arr2)
     spearmanr_rho, spearmanr_pval = spearmanr(arr1, arr2)
     kendalltau_rho, kendalltau_pval = kendalltau(arr1, arr2)
-    target = arr1 > 1
-    source = arr2 > 1
+    target = arr1 > 1.8
+    source = arr2 > 1.8
+    print(np.mean(arr1), np.mean(arr2))
+    print(np.sum(target), np.sum(source))
     precision = precision_score(target, source)
     recall = recall_score(target, source)
     f1 = f1_score(target, source)

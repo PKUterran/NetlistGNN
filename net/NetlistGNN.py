@@ -13,6 +13,7 @@ class NodeNetGNN(nn.Module):
         super(NodeNetGNN, self).__init__()
         self.use_topo_edge = use_topo_edge
         self.use_geom_edge = use_geom_edge
+        self.net_lin = nn.Linear(hidden_net_feats, hidden_net_feats)
 #         self.topo_lin = nn.Linear(hidden_pin_feats, hidden_net_feats * out_node_feats)
 #         self.geom_lin = nn.Linear(hidden_edge_feats, hidden_node_feats * out_node_feats)
 #         self.topo_weight = nn.Linear(hidden_pin_feats, 1)
@@ -70,7 +71,8 @@ class NodeNetGNN(nn.Module):
         
         h1 = self.hetero_conv.forward(g, h, mod_kwargs=mod_kwargs)
 
-        return h1['node'], h1['net']
+        return h1['node'], h1['net'] + self.net_lin(net_feat)
+#         return h1['node'], h1['net']
 
 
 class NetlistGNN(nn.Module):
@@ -113,14 +115,19 @@ class NetlistGNN(nn.Module):
         self.output_layer_net_1 = nn.Linear(self.in_net_feats + self.hidden_net_feats, self.hidden_net_feats)
         self.output_layer_net_2 = nn.Linear(self.hidden_net_feats, self.hidden_net_feats)
         self.output_layer_net_3 = nn.Linear(self.hidden_net_feats, 1)
+        self.output_layer_net_x1 = nn.Linear(self.in_net_feats, 64)
+        self.output_layer_net_x2 = nn.Linear(64, 64)
+        self.output_layer_net_x3 = nn.Linear(64, 1)
         self.activation = activation
 
     def forward(self, in_node_feat: torch.Tensor, in_net_feat: torch.Tensor,
                 in_pin_feat: torch.Tensor, in_edge_feat: torch.Tensor,
                 node_net_graph: dgl.DGLHeteroGraph = None
                 ) -> Tuple[torch.Tensor, torch.Tensor]:
+        in_net_feat = torch.log10(in_net_feat + 1e-4)
+        in_edge_feat = torch.log10(in_edge_feat + 1e-4)
         node_feat = F.leaky_relu(self.node_lin(in_node_feat))
-        net_feat = F.leaky_relu(self.net_lin(in_net_feat))
+        net_feat0 = net_feat = F.leaky_relu(self.net_lin(in_net_feat))
         pin_feat = F.leaky_relu(self.pin_lin(in_pin_feat))
         edge_feat = F.leaky_relu(self.edge_lin(in_edge_feat))
 
@@ -138,17 +145,18 @@ class NetlistGNN(nn.Module):
                 self.output_layer_1(torch.cat([in_node_feat, node_feat], dim=-1))
             ))
         ))
-        output_net_predictions = self.output_layer_net_3(F.leaky_relu(
-            self.output_layer_net_2(F.leaky_relu(
-                self.output_layer_net_1(torch.cat([in_net_feat, net_feat], dim=-1))
-            ))
-        ))
+        net_feat1 = net_feat0 + F.relu(self.output_layer_net_1(torch.cat([in_net_feat, net_feat], dim=-1)))
+        net_feat2 = net_feat1 + F.relu(self.output_layer_net_2(net_feat1))
+        net_feat3 = self.output_layer_net_3(net_feat2)
+        net_feat_x1 = self.output_layer_net_x1(in_net_feat)
+        net_feat_x2 = self.output_layer_net_x2(F.relu(net_feat_x1))
+        output_net_predictions = self.output_layer_net_x3(F.relu(net_feat_x2)) + F.tanh(net_feat3)
         if self.activation == 'sig':
             output_predictions = torch.sigmoid(output_predictions)
-            output_net_predictions = torch.sigmoid(output_net_predictions)
+#             output_net_predictions = torch.sigmoid(output_net_predictions)
         elif self.activation == 'tanh':
             output_predictions = torch.tanh(output_predictions)
-            output_net_predictions = torch.tanh(output_net_predictions)
+#             output_net_predictions = torch.tanh(output_net_predictions)
         else:
             assert False, f'Undefined activation {self.activation}'
         return output_predictions, output_net_predictions

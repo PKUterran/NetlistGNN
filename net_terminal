@@ -6,11 +6,19 @@ python script_process.py --datadir superblue_0425_withHPWL/superblue14
 python script_process.py --datadir superblue_0425_withHPWL/superblue16
 python script_process.py --datadir superblue_0425_withHPWL/superblue19
 
+python script_process.py --datadir superblue_0425_withHPWL/superblue2
+python script_process.py --datadir superblue_0425_withHPWL/superblue3
+python script_process.py --datadir superblue_0425_withHPWL/superblue11
+python script_process.py --datadir superblue_0425_withHPWL/superblue12
+
 python script_hpwl_generate_data.py
 
 # Ours
 python script_hpwl.py --name hyper
-python script_hpwl.py --name hyper-lr3 --lr 1e-3
+python script_hpwl.py --name hyper-lr3 --lr 1e-3 
 
 # LHNN
 python script_hpwl_LHNN.py --name LHNN
+
+# eval
+python script_hpwl.py

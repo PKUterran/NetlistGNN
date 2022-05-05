@@ -68,3 +68,14 @@ python script_train.py --name hyper-test
 python script_train.py --name hyper-tanh --outtype tanh
 
 ps -ef|grep defunct|egrep -v $PPID'|grep'|awk '{print " ps -ef|egrep \47"$2"|"$3"\47"}'|sh|sort -r|awk '{print "kill -9 "$2}'|sh
+git pull
+git pull
+git pull
+git pull
+git pull
+git pull
+git pull
+git pull
+git pull
+git pull
+

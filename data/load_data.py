@@ -221,6 +221,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
         net_label.append(net2hpwl[net] if net2hpwl is not None else 0)
         n_pin = len(list_node_feats)
         xs, ys = [], []
+        pxs, pys = [], []
         for node, pin_px, pin_py, pin_io in list_node_feats:
             us.append(node)
             vs.append(net)
@@ -230,19 +231,24 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
                 continue
             xs.append(int(px / bin_x))
             ys.append(int(py / bin_y))
+            pxs.append(px)
+            pys.append(py)
         if len(xs) == 0:
             span_v = span_h = 0
+            span_pv = span_ph = 0
         else:
             min_x, max_x, min_y, max_y = min(xs), max(xs), min(ys), max(ys)
             span_h = max_x - min_x + 1
             span_v = max_y - min_y + 1
-        net_span_feat.append([span_v, span_h, n_pin, span_v * span_h])
+            min_px, max_px, min_py, max_py = min(pxs), max(pxs), min(pys), max(pys)
+            span_ph = max_px - min_px + 1
+            span_pv = max_py - min_py + 1
+        net_span_feat.append([span_v, span_h, span_v * span_h, span_pv, span_ph, span_pv * span_ph, n_pin])
+    net_degree = np.array(net_degree)
     net_degree_ = torch.unsqueeze(torch.tensor(net_degree, dtype=torch.float32), dim=-1)
     net_span_feat_ = torch.tensor(net_span_feat, dtype=torch.float32)
     net_label = torch.unsqueeze(torch.tensor(net_label, dtype=torch.float32), dim=-1)
     net_hv = torch.cat([net_degree_, net_span_feat_], dim=-1)
-    print(net_hv.shape)
-    exit(123)
 
     hetero_graph = dgl.heterograph({
         ('node', 'near', 'node'): (us4, vs4),
@@ -267,9 +273,14 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
             if node_id in partition_set:
                 new_net_degree_dict.setdefault(net_id, 0)
                 new_net_degree_dict[net_id] += 1
-        part_hetero_graph = dgl.node_subgraph(hetero_graph, nodes={'node': partition, 'net': list(new_net_degree_dict.keys())})
-        new_net_degree = torch.unsqueeze(torch.tensor(list(new_net_degree_dict.values()), dtype=torch.float32), dim=-1)
-        part_hetero_graph.nodes['net'].data['new_degree'] = new_net_degree
+        keep_nets_id = np.array(list(new_net_degree_dict.keys()))
+        keep_nets_degree = np.array(list(new_net_degree_dict.values()))
+        good_nets = np.abs(net_degree[keep_nets_id] - keep_nets_degree) < 1e-5
+#         print(np.sum(good_nets), len(good_nets))
+        keep_nets_id = keep_nets_id[good_nets]
+        part_hetero_graph = dgl.node_subgraph(hetero_graph, nodes={'node': partition, 'net': keep_nets_id})
+#         new_net_degree = torch.unsqueeze(torch.tensor(list(new_net_degree_dict.values()), dtype=torch.float32), dim=-1)
+#         part_hetero_graph.nodes['net'].data['new_degree'] = new_net_degree
 #         print(part_hetero_graph.nodes['net'].data['degree'])
 #         print(part_hetero_graph.nodes['net'].data['new_degree'])
 #         exit(123)

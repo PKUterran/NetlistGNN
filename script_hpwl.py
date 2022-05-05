@@ -30,7 +30,7 @@ argparser.add_argument('--epochs', type=int, default=20)
 argparser.add_argument('--train_epoch', type=int, default=5)
 argparser.add_argument('--batch', type=int, default=1)
 argparser.add_argument('--lr', type=float, default=2e-4)
-argparser.add_argument('--weight_decay', type=float, default=2e-4)
+argparser.add_argument('--weight_decay', type=float, default=1e-5)
 argparser.add_argument('--lr_decay', type=float, default=2e-2)
 argparser.add_argument('--beta', type=float, default=0.5)
 
@@ -39,13 +39,13 @@ argparser.add_argument('--win_x', type=float, default=32)
 argparser.add_argument('--win_y', type=float, default=40)
 argparser.add_argument('--win_cap', type=int, default=5)
 
-argparser.add_argument('--layers', type=int, default=6)  # 2
+argparser.add_argument('--layers', type=int, default=3)  # 3
 argparser.add_argument('--node_feats', type=int, default=64)  # 64
 argparser.add_argument('--net_feats', type=int, default=128)  # 128
 argparser.add_argument('--pin_feats', type=int, default=16)  # 16
 argparser.add_argument('--edge_feats', type=int, default=4)  # 4
 argparser.add_argument('--topo_geom', type=str, default='both')  # default
-argparser.add_argument('--recurrent', type=bool, default=True)  # False
+argparser.add_argument('--recurrent', type=bool, default=False)  # False
 argparser.add_argument('--use_topo_edge', type=bool, default=True)  # True
 argparser.add_argument('--use_geom_edge', type=bool, default=True)  # True
 argparser.add_argument('--pos_code', type=float, default=0.0)  # 0.0
@@ -152,6 +152,7 @@ in_net_feats = train_list_tuple_graph[0][1].nodes['net'].data['hv'].shape[1]
 in_pin_feats = train_list_tuple_graph[0][1].edges['pinned'].data['he'].shape[1]
 if args.topo_geom == 'topo':
     in_node_feats = 6
+    in_net_feats = 1
 model = NetlistGNN(
     in_node_feats=in_node_feats,
     in_net_feats=in_net_feats,
@@ -221,12 +222,9 @@ for epoch in range(0, args.epochs + 1):
                 in_edge_feat=hetero_graph.edges['near'].data['he'],
                 node_net_graph=hetero_graph,
             )
-            pred = pred * args.scalefac
+#             pred = pred * args.scalefac
             batch_labels = hetero_graph.nodes['net'].data['label']
-            degree = hetero_graph.nodes['net'].data['degree'].cpu().data.numpy().flatten()
-            new_degree = hetero_graph.nodes['net'].data['new_degree'].cpu().data.numpy().flatten()
-            good_net = np.abs(degree - new_degree) < 1e-5
-            loss = loss_f(pred.view(-1)[good_net], batch_labels.float()[good_net])
+            loss = loss_f(pred.view(-1), batch_labels.float())
             losses.append(loss)
             if len(losses) >= args.batch or j == n_tuples - 1:
                 sum(losses).backward()
@@ -246,29 +244,26 @@ for epoch in range(0, args.epochs + 1):
                 homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
                 # print(hmg.num_nodes(), hmg.num_edges())
                 in_node_feat = hetero_graph.nodes['node'].data['hv']
+                in_net_feat = hetero_graph.nodes['net'].data['hv']
                 if args.pos_code > 1e-5 and args.topo_geom != 'topo':
                     in_node_feat += args.pos_code * hetero_graph.nodes['node'].data['pos_code']
                 if args.topo_geom == 'topo':
                     in_node_feat = in_node_feat[:, [0, 1, 2, 7, 8, 9]]
+                    in_net_feat = in_net_feat[:, [0]]
                 _, prd = model.forward(
                     in_node_feat=in_node_feat,
-                    in_net_feat=hetero_graph.nodes['net'].data['hv'],
+                    in_net_feat=in_net_feat,
                     in_pin_feat=hetero_graph.edges['pinned'].data['he'],
                     in_edge_feat=hetero_graph.edges['near'].data['he'],
                     node_net_graph=hetero_graph,
                 )
-                prd = prd * args.scalefac
+#                 prd = prd * args.scalefac
                 output_labels = hetero_graph.nodes['net'].data['label']
                 output_predictions = prd
                 tgt = output_labels.cpu().data.numpy().flatten()
                 prd = output_predictions.cpu().data.numpy().flatten()
-                degree = hetero_graph.nodes['net'].data['degree'].cpu().data.numpy().flatten()
-                new_degree = hetero_graph.nodes['net'].data['new_degree'].cpu().data.numpy().flatten()
-                good_net = np.abs(degree - new_degree) < 1e-5
-#                 print(np.sum(good_net), len(degree))
-#                 exit(123)
-                all_tgt.extend(tgt[good_net])
-                all_prd.extend(prd[good_net])
+                all_tgt.extend(tgt)
+                all_prd.extend(prd)
         all_tgt, all_prd = np.array(all_tgt), np.array(all_prd)
         d = printout_xf1(all_tgt, all_prd, "\t\t", f'{set_name}')
         logs[-1].update(d)
