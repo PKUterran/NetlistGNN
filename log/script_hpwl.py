@@ -26,8 +26,8 @@ def plt_tendency(logs: List[Dict[str, Any]], fig_path: str) -> Dict[str, Any]:
     plt.plot(list_epoch, list_test_pearson_rho, color='red', label='pearson')
     plt.plot(list_epoch, list_test_spearmanr_rho, color='green', label='spearmanr')
     plt.plot(list_epoch, list_test_kendalltau_rho, color='blue', label='kendalltau')
-    plt.plot(list_epoch, list_test_mae, color='purple', linestyle='--')
-    plt.plot(list_epoch, list_test_rmse, color='pink', linestyle='--')
+    plt.plot(list_epoch, list_test_mae, color='purple', linestyle='--', label='mae')
+    plt.plot(list_epoch, list_test_rmse, color='pink', linestyle='--', label='rmse')
     plt.legend()
     if not os.path.isdir('hpwl-figures'):
         os.mkdir('hpwl-figures')

@@ -24,12 +24,16 @@ def load_json(logs: List[Dict[str, Any]]) -> Tuple[Dict[str, float], int]:
     list_test_grid_index_recall = [log.setdefault('test_grid_index_recall', None) for log in logs]
     list_test_grid_index_f1 = [log.setdefault('test_grid_index_f1', None) for log in logs]
 
-#     list_validate_grid_index_pearson_rho = [log.setdefault('validate_grid_index_pearson_rho', None) for log in logs]
-#     if list_validate_grid_index_pearson_rho[0]:
-#         best_epoch = np.argmax(list_validate_grid_index_pearson_rho)
-    list_validate_grid_index_rmse = [log.setdefault('validate_grid_index_rmse', None) for log in logs]
-    if list_validate_grid_index_rmse[0]:
-        best_epoch = np.argmin(list_validate_grid_index_rmse)
+    list_validate_grid_index_pearson_rho = [log.setdefault('validate_grid_index_pearson_rho', None) for log in logs]
+    list_validate_grid_index_spearmanr_rho = [log.setdefault('validate_grid_index_spearmanr_rho', None) for log in logs]
+    list_validate_grid_index_kendalltau_rho = [log.setdefault('validate_grid_index_kendalltau_rho', None) for log in logs]
+    list_validate_grid_index_f1 = [log.setdefault('validate_grid_index_f1', None) for log in logs]
+    if list_validate_grid_index_f1[0]:
+        list_total = np.array(list_validate_grid_index_pearson_rho) +\
+                     np.array(list_validate_grid_index_spearmanr_rho) +\
+                     np.array(list_validate_grid_index_kendalltau_rho) +\
+                     np.array(list_validate_grid_index_f1)
+        best_epoch = np.argmax(list_total)
     else:
         best_epoch = -1
 
