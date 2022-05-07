@@ -56,9 +56,12 @@ if not args.device == 'cpu':
     torch.cuda.manual_seed(seed)
 
 train_dataset_names = [
+    'superblue_0425_withHPWL/superblue3_processed',
     'superblue_0425_withHPWL/superblue6_processed',
     'superblue_0425_withHPWL/superblue7_processed',
     'superblue_0425_withHPWL/superblue9_processed',
+    'superblue_0425_withHPWL/superblue11_processed',
+    'superblue_0425_withHPWL/superblue12_processed',
     'superblue_0425_withHPWL/superblue14_processed',
 ]
 validate_dataset_names = [

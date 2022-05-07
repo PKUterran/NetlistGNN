@@ -16,6 +16,8 @@ def plt_tendency(logs: List[Dict[str, Any]], fig_path: str) -> Dict[str, Any]:
     list_train_mae = [log['train_mae'] for log in logs]
     list_train_rmse = [log['train_rmse'] for log in logs]
     list_validate_pearson_rho = [log['validate_pearson_rho'] for log in logs]
+    list_validate_spearman_rho = [log['validate_spearman_rho'] for log in logs]
+    list_validate_kendall_rho = [log['validate_kendall_rho'] for log in logs]
     list_test_pearson_rho = [log['test_pearson_rho'] for log in logs]
     list_test_spearmanr_rho = [log['test_spearmanr_rho'] for log in logs]
     list_test_kendalltau_rho = [log['test_kendalltau_rho'] for log in logs]
@@ -32,9 +34,11 @@ def plt_tendency(logs: List[Dict[str, Any]], fig_path: str) -> Dict[str, Any]:
     if not os.path.isdir('hpwl-figures'):
         os.mkdir('hpwl-figures')
     plt.savefig(fig_path)
-    
-    best_epoch = np.argmax(list_validate_pearson_rho)
-    
+
+    list_total = np.array(list_validate_pearson_rho) + np.array(list_validate_spearman_rho) + np.array(
+        list_validate_kendall_rho)
+    best_epoch = np.argmax(list_total)
+
     return {
         'train_time': list_train_time[best_epoch] / 5,
         'pearson': list_test_pearson_rho[best_epoch],
@@ -46,6 +50,9 @@ def plt_tendency(logs: List[Dict[str, Any]], fig_path: str) -> Dict[str, Any]:
 
 
 PLT_TUPLES = [
+    ('MLP', 'hpwl-superblue19/MLP.json'),
+    ('Net2f', 'hpwl-superblue19/Net2f.json'),
+    ('Net2a', 'hpwl-superblue19/Net2a.json'),
     ('LHNN', 'hpwl-superblue19/LHNN.json'),
     ('Ours', 'hpwl-superblue19/hyper.json'),
 ]

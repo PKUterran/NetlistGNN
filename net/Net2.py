@@ -6,6 +6,57 @@ from dgl.nn.pytorch import GATConv
 import dgl.function as fn
 
 
+class MLP(nn.Module):
+    def __init__(self, nfeats: int, hfeats: int, n_target: int, activation: str = 'sig'):
+        super(MLP, self).__init__()
+        self.lin1 = nn.Linear(nfeats, hfeats)
+        self.lin2 = nn.Linear(hfeats, n_target)
+        self.activation = activation
+
+    def forward(self, g: dgl.DGLGraph) -> torch.Tensor:
+        hfeat0 = g.ndata['hv']
+        hfeat1 = self.lin1(hfeat0)
+        output = self.lin2(F.relu(hfeat1))
+        if self.activation == 'sig':
+            output = F.sigmoid(output)
+        elif self.activation == 'tanh':
+            output = F.tanh(output)
+        else:
+            assert False, f'Undefined activation {self.activation}'
+        return output
+
+
+class Net2f(nn.Module):
+    def __init__(self, nfeats: int, hfeats: int, n_target: int, activation: str = 'sig'):
+        super(Net2f, self).__init__()
+        self.nfeat_lin = nn.Linear(nfeats, hfeats)
+        self.gat1 = GATConv(hfeats, hfeats, 1)
+        self.gat2 = GATConv(hfeats, hfeats, 1)
+        self.gat3 = GATConv(hfeats, hfeats, 1)
+
+        self.readout = nn.Linear(3 * hfeats, n_target)
+        self.activation = activation
+
+    def forward(self, g: dgl.DGLGraph) -> torch.Tensor:
+        nfeat = g.ndata['hv']
+        hnfeat0 = self.nfeat_lin(nfeat)
+        hnfeat1 = self.gat1.forward(g, F.relu(hnfeat0))[:, 0, :]
+        hnfeat2 = self.gat2.forward(g, F.relu(hnfeat1))[:, 0, :]
+        hnfeat3 = self.gat3.forward(g, F.relu(hnfeat2))[:, 0, :]
+
+        output = self.readout(torch.cat([
+            hnfeat1, hnfeat2, hnfeat3
+        ], dim=-1))
+
+        if self.activation == 'sig':
+            output = F.sigmoid(output)
+        elif self.activation == 'tanh':
+            output = F.tanh(output)
+        else:
+            assert False, f'Undefined activation {self.activation}'
+        return output
+
+
 class Net2a(nn.Module):
     def __init__(self, nfeats: int, efeats: int, hfeats: int, n_target: int, activation: str = 'sig'):
         super(Net2a, self).__init__()

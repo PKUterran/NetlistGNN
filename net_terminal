@@ -20,5 +20,10 @@ python script_hpwl.py --name hyper-lr3 --lr 1e-3
 # LHNN
 python script_hpwl_LHNN.py --name LHNN
 
+# Net2
+python script_hpwl_net2.py --name MLP --model mlp
+python script_hpwl_net2.py --name Net2f --model net2f
+python script_hpwl_net2.py --name Net2a --model net2a
+
 # eval
 python script_hpwl.py

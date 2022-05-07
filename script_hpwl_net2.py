@@ -11,8 +11,8 @@ import dgl
 import torch
 import torch.nn as nn
 
-from data.load_data import load_data
-from net.NetlistGNN import NetlistGNN
+from data.net2_data import net2_data
+from net.Net2 import MLP, Net2f, Net2a
 from log.draw_scatter import draw_scatter
 from utils.output import printout_xf1
 
@@ -24,12 +24,12 @@ logs: List[Dict[str, Any]] = []
 
 argparser = argparse.ArgumentParser("Training")
 
-argparser.add_argument('--name', type=str, default='main')
+argparser.add_argument('--name', type=str, default='net2a')
 argparser.add_argument('--test', type=str, default='superblue19')
 argparser.add_argument('--epochs', type=int, default=20)
 argparser.add_argument('--train_epoch', type=int, default=5)
 argparser.add_argument('--batch', type=int, default=1)
-argparser.add_argument('--lr', type=float, default=2e-4)
+argparser.add_argument('--lr', type=float, default=1e-3)
 argparser.add_argument('--weight_decay', type=float, default=1e-5)
 argparser.add_argument('--lr_decay', type=float, default=2e-2)
 argparser.add_argument('--beta', type=float, default=0.5)
@@ -39,16 +39,8 @@ argparser.add_argument('--win_x', type=float, default=32)
 argparser.add_argument('--win_y', type=float, default=40)
 argparser.add_argument('--win_cap', type=int, default=5)
 
-argparser.add_argument('--layers', type=int, default=3)  # 3
-argparser.add_argument('--node_feats', type=int, default=64)  # 64
-argparser.add_argument('--net_feats', type=int, default=128)  # 128
-argparser.add_argument('--pin_feats', type=int, default=16)  # 16
-argparser.add_argument('--edge_feats', type=int, default=4)  # 4
-argparser.add_argument('--topo_geom', type=str, default='both')  # default
-argparser.add_argument('--recurrent', type=bool, default=False)  # False
-argparser.add_argument('--use_topo_edge', type=bool, default=True)  # True
-argparser.add_argument('--use_geom_edge', type=bool, default=True)  # True
-argparser.add_argument('--pos_code', type=float, default=0.0)  # 0.0
+argparser.add_argument('--model', type=str, default='net2a')  # True
+argparser.add_argument('--hfeats', type=int, default=64)  # 64
 
 argparser.add_argument('--seed', type=int, default=0)
 argparser.add_argument('--device', type=str, default='cuda:0')
@@ -80,12 +72,6 @@ config = {
     'EDGE_FEATS': args.edge_feats,
 }
 
-# train_dataset_names = [
-#     'superblue_0425_withHPWL/superblue6_processed',
-# ]
-# validate_dataset_name = 'superblue_0425_withHPWL/superblue6_processed'
-# test_dataset_name = f'superblue_0425_withHPWL/superblue6_processed'
-
 train_dataset_names = [
     'superblue_0425_withHPWL/superblue3_processed',
     'superblue_0425_withHPWL/superblue6_processed',
@@ -98,75 +84,71 @@ train_dataset_names = [
 validate_dataset_name = 'superblue_0425_withHPWL/superblue16_processed'
 test_dataset_name = f'superblue_0425_withHPWL/{args.test}_processed'
 
-train_list_tuple_graph, validate_list_tuple_graph, test_list_tuple_graph = [], [], []
-
-
-def fit_topo_geom(ltg):
-    if args.topo_geom == 'topo':
-        ltg = [(g, dgl.remove_edges(hg, hg.edges('eid', etype='near'), etype='near')) for g, hg in ltg]
-    elif args.topo_geom == 'geom':
-        ltg = [(g, dgl.remove_edges(hg, hg.edges('eid', etype='pinned'), etype='pinned')) for g, hg in ltg]
-    ltg = [(g, dgl.add_self_loop(hg, etype='near')) for g, hg in ltg]
-    return ltg
-
+train_list_graph, validate_list_graph, test_list_graph = [], [], []
 
 for dataset_name in train_dataset_names:
     for i in range(0, args.itermax):
         if os.path.isfile(f'data/{dataset_name}/iter_{i}_node_label_full_{args.hashcode}_.npy'):
             print(f'Loading {dataset_name}:')
-            list_tuple_graph = load_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
+            list_tuple_graph = net2_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
                                          graph_scale=args.graph_scale,
                                          bin_x=args.binx, bin_y=args.biny, force_save=False,
                                          app_name=args.app_name,
                                          win_x=args.win_x, win_y=args.win_y, win_cap=args.win_cap)
-            list_tuple_graph = fit_topo_geom(list_tuple_graph)
-            train_list_tuple_graph.extend(list_tuple_graph)
+            train_list_graph.extend(list_tuple_graph)
 
 for dataset_name in [validate_dataset_name]:
     for i in range(0, args.itermax):
         if os.path.isfile(f'data/{dataset_name}/iter_{i}_node_label_full_{args.hashcode}_.npy'):
             print(f'Loading {dataset_name}:')
-            list_tuple_graph = load_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
+            list_tuple_graph = net2_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
                                          graph_scale=args.graph_scale,
                                          bin_x=args.binx, bin_y=args.biny, force_save=False,
                                          app_name=args.app_name,
                                          win_x=args.win_x, win_y=args.win_y, win_cap=args.win_cap)
-            list_tuple_graph = fit_topo_geom(list_tuple_graph)
-            validate_list_tuple_graph.extend(list_tuple_graph)
+            validate_list_graph.extend(list_tuple_graph)
 
 for dataset_name in [test_dataset_name]:
     for i in range(0, args.itermax):
         if os.path.isfile(f'data/{dataset_name}/iter_{i}_node_label_full_{args.hashcode}_.npy'):
             print(f'Loading {dataset_name}:')
-            list_tuple_graph = load_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
+            list_tuple_graph = net2_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
                                          graph_scale=args.graph_scale,
                                          bin_x=args.binx, bin_y=args.biny, force_save=False,
                                          app_name=args.app_name,
                                          win_x=args.win_x, win_y=args.win_y, win_cap=args.win_cap)
-            list_tuple_graph = fit_topo_geom(list_tuple_graph)
-            test_list_tuple_graph.extend(list_tuple_graph)
-n_train_node = sum(map(lambda x: x[0].number_of_nodes(), train_list_tuple_graph))
-n_validate_node = sum(map(lambda x: x[0].number_of_nodes(), validate_list_tuple_graph))
-n_test_node = sum(map(lambda x: x[0].number_of_nodes(), test_list_tuple_graph))
+            test_list_graph.extend(list_tuple_graph)
 
 print('##### MODEL #####')
-in_node_feats = train_list_tuple_graph[0][1].nodes['node'].data['hv'].shape[1]
-in_net_feats = train_list_tuple_graph[0][1].nodes['net'].data['hv'].shape[1]
-in_pin_feats = train_list_tuple_graph[0][1].edges['pinned'].data['he'].shape[1]
-if args.topo_geom == 'topo':
-    in_node_feats = 6
-    in_net_feats = 1
-model = NetlistGNN(
-    in_node_feats=in_node_feats,
-    in_net_feats=in_net_feats,
-    in_pin_feats=in_pin_feats,
-    in_edge_feats=1,
-    n_target=1,
-    activation=args.outtype,
-    config=config,
-    recurrent=args.recurrent,
-    use_topo_edge=args.use_topo_edge, use_geom_edge=args.use_geom_edge
-).to(device)
+nfeats = train_list_graph[0].ndata['hv'].shape[1]
+efeats = train_list_graph[0].edata['he'].shape[1]
+
+if args.model == 'mlp':
+    model = MLP(
+        nfeats=nfeats,
+        hfeats=args.hfeats,
+        n_target=1,
+        activation=args.outtype,
+    ).to(device)
+elif args.model == 'net2f':
+    model = Net2f(
+        nfeats=nfeats,
+        hfeats=args.hfeats,
+        n_target=1,
+        activation=args.outtype,
+    ).to(device)
+elif args.model == 'net2a':
+    model = Net2a(
+        nfeats=nfeats,
+        efeats=efeats,
+        hfeats=args.hfeats,
+        n_target=1,
+        activation=args.outtype,
+    ).to(device)
+else:
+    assert False, f'Model name: {args.model}'
+print(f'Use model: {args.model}')
+
 n_param = 0
 for name, param in model.named_parameters():
     print(f'\t{name}: {param.shape}')
@@ -193,10 +175,6 @@ if not os.path.isdir(FIG_DIR):
     os.mkdir(FIG_DIR)
 
 
-def to_device(a, b):
-    return a.to(device), b.to(device)
-
-
 for epoch in range(0, args.epochs + 1):
     print(f'##### EPOCH {epoch} #####')
     print(f'\tLearning rate: {optimizer.state_dict()["param_groups"][0]["lr"]}')
@@ -208,25 +186,12 @@ for epoch in range(0, args.epochs + 1):
         t1 = time()
         losses = []
         n_tuples = len(ltg)
-        for j, (homo_graph, hetero_graph) in enumerate(ltg):
-            homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
+        for j, graph in enumerate(ltg):
+            graph = graph.to(device)
             optimizer.zero_grad()
-            in_node_feat = hetero_graph.nodes['node'].data['hv']
-            in_net_feat = hetero_graph.nodes['net'].data['hv']
-            if args.pos_code > 1e-5 and args.topo_geom != 'topo':
-                in_node_feat += args.pos_code * hetero_graph.nodes['node'].data['pos_code']
-            if args.topo_geom == 'topo':
-                in_node_feat = in_node_feat[:, [0, 1, 2, 7, 8, 9]]
-                in_net_feat = in_net_feat[:, [0]]
-            _, pred = model.forward(
-                in_node_feat=in_node_feat,
-                in_net_feat=in_net_feat,
-                in_pin_feat=hetero_graph.edges['pinned'].data['he'],
-                in_edge_feat=hetero_graph.edges['near'].data['he'],
-                node_net_graph=hetero_graph,
-            )
-#             pred = pred * args.scalefac
-            batch_labels = hetero_graph.nodes['net'].data['label']
+            pred = model.forward(graph)
+            pred = pred * args.scalefac
+            batch_labels = graph.ndata['label']
             loss = loss_f(pred.view(-1), batch_labels.float())
             losses.append(loss)
             if len(losses) >= args.batch or j == n_tuples - 1:
@@ -243,25 +208,11 @@ for epoch in range(0, args.epochs + 1):
         all_tgt = []
         all_prd = []
         with torch.no_grad():
-            for j, (homo_graph, hetero_graph) in enumerate(ltg):
-                homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
-                # print(hmg.num_nodes(), hmg.num_edges())
-                in_node_feat = hetero_graph.nodes['node'].data['hv']
-                in_net_feat = hetero_graph.nodes['net'].data['hv']
-                if args.pos_code > 1e-5 and args.topo_geom != 'topo':
-                    in_node_feat += args.pos_code * hetero_graph.nodes['node'].data['pos_code']
-                if args.topo_geom == 'topo':
-                    in_node_feat = in_node_feat[:, [0, 1, 2, 7, 8, 9]]
-                    in_net_feat = in_net_feat[:, [0]]
-                _, prd = model.forward(
-                    in_node_feat=in_node_feat,
-                    in_net_feat=in_net_feat,
-                    in_pin_feat=hetero_graph.edges['pinned'].data['he'],
-                    in_edge_feat=hetero_graph.edges['near'].data['he'],
-                    node_net_graph=hetero_graph,
-                )
-#                 prd = prd * args.scalefac
-                output_labels = hetero_graph.nodes['net'].data['label']
+            for j, graph in enumerate(ltg):
+                graph = graph.to(device)
+                prd = model.forward(graph)
+                prd = prd * args.scalefac
+                output_labels = graph.ndata['label']
                 output_predictions = prd
                 tgt = output_labels.cpu().data.numpy().flatten()
                 prd = output_predictions.cpu().data.numpy().flatten()
@@ -275,12 +226,12 @@ for epoch in range(0, args.epochs + 1):
     t0 = time()
     if epoch:
         for _ in range(args.train_epoch):
-            train(train_list_tuple_graph)
+            train(train_list_graph)
     logs[-1].update({'train_time': time() - t0})
     t2 = time()
-    evaluate(train_list_tuple_graph, 'train_')
-    evaluate(validate_list_tuple_graph, 'validate_')
-    evaluate(test_list_tuple_graph, 'test_')
+    evaluate(train_list_graph, 'train_')
+    evaluate(validate_list_graph, 'validate_')
+    evaluate(test_list_graph, 'test_')
     # exit(123)
     print("\tinference time", time() - t2)
     logs[-1].update({'eval_time': time() - t2})
