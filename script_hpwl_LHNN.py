@@ -14,6 +14,7 @@ import torch.nn as nn
 from data.LHNN_data import load_data, SparseBinaryMatrix
 from net.LHNN import LHNN
 from utils.output import printout_xf1
+from log.draw_scatter import draw_scatter
 
 import warnings
 
@@ -111,6 +112,9 @@ scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=(1 - a
 LOG_DIR = f'log/hpwl-{args.test}'
 if not os.path.isdir(LOG_DIR):
     os.mkdir(LOG_DIR)
+FIG_DIR = 'log/hpwl-temp'
+if not os.path.isdir(FIG_DIR):
+    os.mkdir(FIG_DIR)
 
 for epoch in range(0, args.epochs + 1):
     print(f'##### EPOCH {epoch} #####')
@@ -155,6 +159,7 @@ for epoch in range(0, args.epochs + 1):
                 all_prd.extend(prd)
         all_tgt, all_prd = np.array(all_tgt), np.array(all_prd)
         d = printout_xf1(all_tgt, all_prd, "\t\t", f'{set_name}')
+        draw_scatter(all_tgt, all_prd, f'{args.name}-{set_name}', epoch=epoch, fig_dir=FIG_DIR)
         logs[-1].update(d)
 
     t0 = time()

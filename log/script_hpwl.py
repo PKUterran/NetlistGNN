@@ -16,8 +16,8 @@ def plt_tendency(logs: List[Dict[str, Any]], fig_path: str) -> Dict[str, Any]:
     list_train_mae = [log['train_mae'] for log in logs]
     list_train_rmse = [log['train_rmse'] for log in logs]
     list_validate_pearson_rho = [log['validate_pearson_rho'] for log in logs]
-    list_validate_spearman_rho = [log['validate_spearman_rho'] for log in logs]
-    list_validate_kendall_rho = [log['validate_kendall_rho'] for log in logs]
+    list_validate_spearmanr_rho = [log['validate_spearmanr_rho'] for log in logs]
+    list_validate_kendalltau_rho = [log['validate_kendalltau_rho'] for log in logs]
     list_test_pearson_rho = [log['test_pearson_rho'] for log in logs]
     list_test_spearmanr_rho = [log['test_spearmanr_rho'] for log in logs]
     list_test_kendalltau_rho = [log['test_kendalltau_rho'] for log in logs]
@@ -35,8 +35,8 @@ def plt_tendency(logs: List[Dict[str, Any]], fig_path: str) -> Dict[str, Any]:
         os.mkdir('hpwl-figures')
     plt.savefig(fig_path)
 
-    list_total = np.array(list_validate_pearson_rho) + np.array(list_validate_spearman_rho) + np.array(
-        list_validate_kendall_rho)
+    list_total = np.array(list_validate_pearson_rho) + np.array(list_validate_spearmanr_rho) + np.array(
+        list_validate_kendalltau_rho)
     best_epoch = np.argmax(list_total)
 
     return {
@@ -46,7 +46,7 @@ def plt_tendency(logs: List[Dict[str, Any]], fig_path: str) -> Dict[str, Any]:
         'kendalltau': list_test_kendalltau_rho[best_epoch],
         'mae': list_test_mae[best_epoch],
         'rmse': list_test_rmse[best_epoch],
-    }
+    }, best_epoch
 
 
 PLT_TUPLES = [
@@ -62,8 +62,8 @@ if __name__ == '__main__':
         try:
             with open(path) as fp:
                 d = json.load(fp)
-            ret = plt_tendency(d, f'hpwl-figures/{name}.png')
-            print(f'For {name}:')
+            ret, be = plt_tendency(d, f'hpwl-figures/{name}.png')
+            print(f'For {name}@{be}:')
             for k, v in ret.items():
                 print(f'\t{k}: {v:.3f}')
         except FileNotFoundError:

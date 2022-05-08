@@ -15,7 +15,6 @@ python script_hpwl_generate_data.py
 
 # Ours
 python script_hpwl.py --name hyper
-python script_hpwl.py --name hyper-lr3 --lr 1e-3 
 
 # LHNN
 python script_hpwl_LHNN.py --name LHNN

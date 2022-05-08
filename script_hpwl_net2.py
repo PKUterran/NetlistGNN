@@ -64,14 +64,6 @@ if not args.device == 'cpu':
     torch.cuda.set_device(device)
     torch.cuda.manual_seed(seed)
 
-config = {
-    'N_LAYER': args.layers,
-    'NODE_FEATS': args.node_feats,
-    'NET_FEATS': args.net_feats,
-    'PIN_FEATS': args.pin_feats,
-    'EDGE_FEATS': args.edge_feats,
-}
-
 train_dataset_names = [
     'superblue_0425_withHPWL/superblue3_processed',
     'superblue_0425_withHPWL/superblue6_processed',
@@ -120,7 +112,7 @@ for dataset_name in [test_dataset_name]:
             test_list_graph.extend(list_tuple_graph)
 
 print('##### MODEL #####')
-nfeats = train_list_graph[0].ndata['hv'].shape[1]
+nfeats = 1
 efeats = train_list_graph[0].edata['he'].shape[1]
 
 if args.model == 'mlp':
@@ -188,6 +180,7 @@ for epoch in range(0, args.epochs + 1):
         n_tuples = len(ltg)
         for j, graph in enumerate(ltg):
             graph = graph.to(device)
+            graph.ndata['hv'] = graph.ndata['hv'][:, [0]]
             optimizer.zero_grad()
             pred = model.forward(graph)
             pred = pred * args.scalefac
@@ -210,6 +203,7 @@ for epoch in range(0, args.epochs + 1):
         with torch.no_grad():
             for j, graph in enumerate(ltg):
                 graph = graph.to(device)
+                graph.ndata['hv'] = graph.ndata['hv'][:, [0]]
                 prd = model.forward(graph)
                 prd = prd * args.scalefac
                 output_labels = graph.ndata['label']
@@ -221,7 +215,7 @@ for epoch in range(0, args.epochs + 1):
         all_tgt, all_prd = np.array(all_tgt), np.array(all_prd)
         d = printout_xf1(all_tgt, all_prd, "\t\t", f'{set_name}')
         logs[-1].update(d)
-        draw_scatter(all_tgt, all_prd, f'{args.name}-{set_name}', fig_dir=FIG_DIR)
+        draw_scatter(all_tgt, all_prd, f'{args.name}-{set_name}', epoch=epoch, fig_dir=FIG_DIR)
 
     t0 = time()
     if epoch:
