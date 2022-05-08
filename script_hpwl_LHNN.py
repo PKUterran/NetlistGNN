@@ -14,7 +14,7 @@ import torch.nn as nn
 from data.LHNN_data import load_data, SparseBinaryMatrix
 from net.LHNN import LHNN
 from utils.output import printout_xf1
-from log.draw_scatter import draw_scatter
+from log.store_scatter import store_scatter
 
 import warnings
 
@@ -159,7 +159,7 @@ for epoch in range(0, args.epochs + 1):
                 all_prd.extend(prd)
         all_tgt, all_prd = np.array(all_tgt), np.array(all_prd)
         d = printout_xf1(all_tgt, all_prd, "\t\t", f'{set_name}')
-        draw_scatter(all_tgt, all_prd, f'{args.name}-{set_name}', epoch=epoch, fig_dir=FIG_DIR)
+        store_scatter(all_tgt, all_prd, f'{args.name}-{set_name}', epoch=epoch, fig_dir=FIG_DIR)
         logs[-1].update(d)
 
     t0 = time()

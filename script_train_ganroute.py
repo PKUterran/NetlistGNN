@@ -7,8 +7,6 @@ from functools import reduce
 
 import numpy as np
 
-from scipy.stats import pearsonr, spearmanr, kendalltau
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,37 +14,14 @@ from torch.utils.data import DataLoader
 
 from data.DIT import load_data
 from net.GanRoute import ImageAutoEncoder, Discriminator
+from utils.output import printout
+from log.store_cong import store_cong_from_grid
 
 import warnings
 
 warnings.filterwarnings("ignore")
 
 logs: List[Dict[str, Any]] = []
-
-
-def printout(arr1, arr2, prefix="", log_prefix=""):
-    pearsonr_rho, pearsonr_pval = pearsonr(arr1, arr2)
-    spearmanr_rho, spearmanr_pval = spearmanr(arr1, arr2)
-    kendalltau_rho, kendalltau_pval = kendalltau(arr1, arr2)
-    mae = np.sum(np.abs(arr1 - arr2)) / len(arr1)
-    delta = np.abs(arr1 - arr2)
-    rmse = np.sqrt(np.sum(np.multiply(delta, delta)) / len(arr1))
-    print(prefix + "pearson", pearsonr_rho, pearsonr_pval)
-    print(prefix + "spearman", spearmanr_rho, spearmanr_pval)
-    print(prefix + "kendall", kendalltau_rho, kendalltau_pval)
-    print(prefix + "MAE", mae)
-    print(prefix + "RMSE", rmse)
-    logs[-1].update({
-        f'{log_prefix}pearson_rho': pearsonr_rho,
-        f'{log_prefix}pearsonr_pval': pearsonr_pval,
-        f'{log_prefix}spearmanr_rho': spearmanr_rho,
-        f'{log_prefix}spearmanr_pval': spearmanr_pval,
-        f'{log_prefix}kendalltau_rho': kendalltau_rho,
-        f'{log_prefix}kendalltau_pval': kendalltau_pval,
-        f'{log_prefix}mae': mae,
-        f'{log_prefix}rmse': rmse,
-    })
-
 
 argparser = argparse.ArgumentParser("Training")
 argparser.add_argument('--name', type=str, default='GanRoute')
@@ -116,11 +91,15 @@ fake_label = 0.
 LOG_DIR = f'log/{args.test}'
 if not os.path.isdir(LOG_DIR):
     os.mkdir(LOG_DIR)
+FIG_DIR = 'log/temp'
+if not os.path.isdir(FIG_DIR):
+    os.mkdir(FIG_DIR)
 
 for epoch in range(0, args.epochs + 1):
     print(f'##### EPOCH {epoch} #####')
     print(f"\tLearning rate of generator: {optimizer_gen.state_dict()['param_groups'][0]['lr']}")
     logs.append({'epoch': epoch})
+
 
     def train(data_loader: DataLoader):
         for i, (batch_output_image, _) in enumerate(data_loader):
@@ -174,6 +153,7 @@ for epoch in range(0, args.epochs + 1):
                       % (epoch, args.epochs, epoch_i, args.train_batch, i, len(data_loader),
                          err_dis.item(), err_gen_1.item(), err_gen_2.item(), dis_x, dis_gen_z1, dis_gen_z2))
 
+
     def evaluate(data_loader: DataLoader, set_name, n_sample, single_net=False):
         print(f'\tEvaluate {set_name}:')
         output_data = np.zeros((n_sample * 32 * 32, 3))
@@ -196,8 +176,10 @@ for epoch in range(0, args.epochs + 1):
         output_data = output_data[:p, :]
         printout(output_data[:, 0], output_data[:, 1], "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
         printout(output_data[output_data[:, 2] > 0, 0], output_data[output_data[:, 2] > 0, 1],
-                     "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
-
+                 "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
+        if set_name == 'test_' and args.test == 'superblue19':
+            store_cong_from_grid(output_data[:, 0], output_data[:, 1], 32, 32, [321, 518],
+                                 f'{args.name}-{set_name}', epoch=epoch, fig_dir=FIG_DIR)
 
     t0 = time()
     if epoch:

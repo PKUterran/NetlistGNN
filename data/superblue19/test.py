@@ -3,6 +3,8 @@ from matplotlib import pyplot as plt
 
 a = np.load('iter_900_cmap_h.npy')
 b = np.load('iter_900_cmap_v.npy')
+print(a.shape)
+exit(123)
 c = (a + b)[:, :, 0]
 c = c.flatten()
 

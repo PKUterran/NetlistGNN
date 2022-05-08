@@ -13,7 +13,7 @@ import torch.nn as nn
 
 from data.load_data import load_data
 from net.NetlistGNN import NetlistGNN
-from log.draw_scatter import draw_scatter
+from log.store_cong import store_cong_from_node
 from utils.output import printout, get_grid_level_corr
 
 import warnings
@@ -294,8 +294,11 @@ for epoch in range(0, args.epochs + 1):
         #         print(f'\t\tworst:\n{outputdata[worst, :]}')
         d = printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
         logs[-1].update(d)
-        # draw_scatter(outputdata[:, 0], outputdata[:, 1], f'{args.name}-{set_name}')
         if single_net:
+            if set_name == 'test_' and args.test == 'superblue19':
+                store_cong_from_node(outputdata[:, 0], outputdata[:, 1], outputdata[:, 2], outputdata[:, 3],
+                                     args.binx, args.biny, [321, 518],
+                                     f'{args.name}-{set_name}', epoch=epoch, fig_dir=FIG_DIR)
             d1, d2 = get_grid_level_corr(outputdata[:, :4], args.binx, args.biny,
                                          int(np.rint(np.max(outputdata[:, 2]) / args.binx)) + 1,
                                          int(np.rint(np.max(outputdata[:, 3]) / args.biny)) + 1,

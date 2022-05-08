@@ -13,7 +13,7 @@ import torch.nn as nn
 
 from data.net2_data import net2_data
 from net.Net2 import MLP, Net2f, Net2a
-from log.draw_scatter import draw_scatter
+from log.store_scatter import store_scatter
 from utils.output import printout_xf1
 
 import warnings
@@ -215,7 +215,7 @@ for epoch in range(0, args.epochs + 1):
         all_tgt, all_prd = np.array(all_tgt), np.array(all_prd)
         d = printout_xf1(all_tgt, all_prd, "\t\t", f'{set_name}')
         logs[-1].update(d)
-        draw_scatter(all_tgt, all_prd, f'{args.name}-{set_name}', epoch=epoch, fig_dir=FIG_DIR)
+        store_scatter(all_tgt, all_prd, f'{args.name}-{set_name}', epoch=epoch, fig_dir=FIG_DIR)
 
     t0 = time()
     if epoch:

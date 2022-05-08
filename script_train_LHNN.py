@@ -14,6 +14,7 @@ import torch.nn as nn
 from data.LHNN_data import load_data, SparseBinaryMatrix
 from net.LHNN import LHNN
 from utils.output import printout
+from log.store_cong import store_cong_from_grid
 
 import warnings
 
@@ -113,6 +114,9 @@ scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=(1 - a
 LOG_DIR = f'log/{args.test}'
 if not os.path.isdir(LOG_DIR):
     os.mkdir(LOG_DIR)
+FIG_DIR = 'log/temp'
+if not os.path.isdir(FIG_DIR):
+    os.mkdir(FIG_DIR)
 
 for epoch in range(0, args.epochs + 1):
     print(f'##### EPOCH {epoch} #####')
@@ -163,7 +167,9 @@ for epoch in range(0, args.epochs + 1):
         d = printout(output_data[output_data[:, 2] > 0, 0], output_data[output_data[:, 2] > 0, 1],
                      "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
         logs[-1].update(d)
-
+        if set_name == 'test_' and args.test == 'superblue19':
+            store_cong_from_grid(output_data[:, 0], output_data[:, 1], 32, 32, [321, 518],
+                                 f'{args.name}-{set_name}', epoch=epoch, fig_dir=FIG_DIR)
 
     t0 = time()
     if epoch:
