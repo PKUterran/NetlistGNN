@@ -37,16 +37,16 @@ class NodeNetGNN(nn.Module):
 
         self.hetero_conv = HeteroGraphConv({
             'pins': GraphConv(in_feats=hidden_node_feats, out_feats=out_net_feats),
-            'pinned': 
+            'pinned':
 #                 NNConv(in_feats=hidden_net_feats, out_feats=out_node_feats, edge_func=topo_edge_func)
 #                 SAGEConv(in_feats=(hidden_net_feats, hidden_node_feats), out_feats=out_node_feats, aggregator_type='pool')
-                CFConv(node_in_feats=hidden_net_feats, edge_in_feats=hidden_pin_feats, 
+                CFConv(node_in_feats=hidden_net_feats, edge_in_feats=hidden_pin_feats,
                        hidden_feats=hidden_node_feats, out_feats=out_node_feats)
             if use_topo_edge else GraphConv(in_feats=hidden_net_feats, out_feats=out_node_feats),
-            'near': 
+            'near':
 #                 NNConv(in_feats=hidden_node_feats, out_feats=out_node_feats, edge_func=geom_edge_func)
                 SAGEConv(in_feats=hidden_node_feats, out_feats=out_node_feats, aggregator_type='pool')
-#                 CFConv(node_in_feats=hidden_node_feats, edge_in_feats=hidden_edge_feats, 
+#                 CFConv(node_in_feats=hidden_node_feats, edge_in_feats=hidden_edge_feats,
 #                        hidden_feats=hidden_node_feats, out_feats=out_node_feats)
             if use_geom_edge else GATConv(in_feats=hidden_node_feats, out_feats=out_node_feats, num_heads=1),
         }, aggregate=my_agg_func)
@@ -68,7 +68,7 @@ class NodeNetGNN(nn.Module):
 #             mod_kwargs['near'] = {'efeat': edge_feat}
             mod_kwargs['near'] = {'edge_weight': torch.sigmoid(self.geom_weight(edge_feat))}
 #             mod_kwargs['near'] = {'edge_feats': edge_feat}
-        
+
         h1 = self.hetero_conv.forward(g, h, mod_kwargs=mod_kwargs)
 
         return h1['node'], h1['net'] + self.net_lin(net_feat)
