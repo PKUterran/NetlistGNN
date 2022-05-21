@@ -14,7 +14,7 @@ import torch.nn as nn
 from data.LHNN_data import load_data, SparseBinaryMatrix
 from net.LHNN import LHNN
 from utils.output import printout
-from log.store_cong import store_cong_from_grid
+from log.store_cong import store_cong_from_grid, store_cong_from_grid_ganroute
 
 import warnings
 
@@ -168,7 +168,9 @@ for epoch in range(0, args.epochs + 1):
                      "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
         logs[-1].update(d)
         if set_name == 'test_' and args.test == 'superblue19':
-            store_cong_from_grid(output_data[:, 0], output_data[:, 1], 32, 32, [321, 518],
+            output_data[output_data[:, 2] < 0.001, 0] = 0
+            output_data[output_data[:, 2] < 0.001, 1] = 0
+            store_cong_from_grid(output_data[:, 0], output_data[:, 1], 32, 32, [288, 512],
                                  f'{args.name}-{set_name}', epoch=epoch, fig_dir=FIG_DIR)
 
     t0 = time()
@@ -181,6 +183,7 @@ for epoch in range(0, args.epochs + 1):
     evaluate(train_list_tensors, 'train_', n_train_node)
     evaluate(validate_list_tensors, 'validate_', n_validate_node, single_net=True)
     evaluate(test_list_tensors, 'test_', n_test_node, single_net=True)
+#     exit(123)
     print("\tinference time", time() - t2)
     logs[-1].update({'eval_time': time() - t2})
     with open(f'{LOG_DIR}/{args.name}.json', 'w+') as fp:

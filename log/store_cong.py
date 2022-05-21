@@ -52,3 +52,26 @@ def store_cong_from_grid(target, source, part_x, part_y, shape, name, epoch=-1, 
 
     with open(f'{fig_dir}/{name}@{epoch}.pkl', 'wb+') as fp:
         pickle.dump((tgt, src), fp)
+
+        
+def store_cong_from_grid_ganroute(target, source, part_x, part_y, shape, name, epoch=-1, fig_dir='log/temp'):
+    x_size = int(shape[0] / part_x)
+    y_size = int(shape[1] / part_y)
+    tgts, srcs = [], []
+    for xi in range(x_size):
+        for yi in range(y_size):
+            tgt = np.zeros([part_x, part_y])
+            src = np.zeros([part_x, part_y])
+            for i in range(part_x):
+                for j in range(part_y):
+                    tgt[i, j] = target[
+                        (xi + yi * x_size) * (part_x * part_y) + j * part_x + i
+                    ]
+                    src[i, j] = source[
+                        (xi + yi * x_size) * (part_x * part_y) + j * part_x + i
+                    ]
+            tgts.append(tgt)
+            srcs.append(src)
+
+    with open(f'{fig_dir}/{name}@{epoch}.pkl', 'wb+') as fp:
+        pickle.dump((tgts, srcs), fp)

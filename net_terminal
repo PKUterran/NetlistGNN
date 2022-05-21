@@ -15,6 +15,7 @@ python script_hpwl_generate_data.py
 
 # Ours
 python script_hpwl.py --name hyper
+python script_hpwl.py --name hyper-topo --topo_geom topo
 
 # LHNN
 python script_hpwl_LHNN.py --name LHNN
@@ -23,6 +24,9 @@ python script_hpwl_LHNN.py --name LHNN
 python script_hpwl_net2.py --name MLP --model mlp
 python script_hpwl_net2.py --name Net2f --model net2f
 python script_hpwl_net2.py --name Net2a --model net2a
+python script_hpwl_net2.py --name MLP --model mlp --topo_geom topo
+python script_hpwl_net2.py --name Net2f --model net2f --topo_geom topo
+python script_hpwl_net2.py --name Net2a --model net2a --topo_geom topo
 
 # eval
-python script_hpwl.py
+python script_hpwl.py 

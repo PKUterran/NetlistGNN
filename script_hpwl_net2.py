@@ -40,6 +40,7 @@ argparser.add_argument('--win_y', type=float, default=40)
 argparser.add_argument('--win_cap', type=int, default=5)
 
 argparser.add_argument('--model', type=str, default='net2a')  # True
+argparser.add_argument('--topo_geom', type=str, default='both')  # default
 argparser.add_argument('--hfeats', type=int, default=64)  # 64
 
 argparser.add_argument('--seed', type=int, default=0)

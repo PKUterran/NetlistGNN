@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 from data.DIT import load_data
 from net.GanRoute import ImageAutoEncoder, Discriminator
 from utils.output import printout
-from log.store_cong import store_cong_from_grid
+from log.store_cong import store_cong_from_grid_ganroute
 
 import warnings
 
@@ -178,8 +178,8 @@ for epoch in range(0, args.epochs + 1):
         printout(output_data[output_data[:, 2] > 0, 0], output_data[output_data[:, 2] > 0, 1],
                  "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
         if set_name == 'test_' and args.test == 'superblue19':
-            store_cong_from_grid(output_data[:, 0], output_data[:, 1], 32, 32, [321, 518],
-                                 f'{args.name}-{set_name}', epoch=epoch, fig_dir=FIG_DIR)
+            store_cong_from_grid_ganroute(output_data[:, 0], output_data[:, 1], 32, 32, [160, 288],
+                                          f'{args.name}-{set_name}', epoch=epoch, fig_dir=FIG_DIR)
 
     t0 = time()
     if epoch:
