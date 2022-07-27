@@ -67,6 +67,7 @@ PLT_TUPLES_3 = [
     ('line', ''),
 
     ('GAT (w. geom.)', 'superblue19/GAT-pos.json'),
+    ('Ours (o. topo. w. geom.)', 'superblue19/hyper-pos.json'),
     ('pix2pix', 'superblue19/GanRoute.json'),
     ('LHNN', 'superblue19/LHNN.json'),
     ('Ours (o. geom.)', 'superblue19/hyper-geom.json'),
