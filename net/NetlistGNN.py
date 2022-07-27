@@ -8,22 +8,23 @@ from typing import Tuple, Dict, Any, List, Union
 
 class NodeNetGNN(nn.Module):
     def __init__(self, hidden_node_feats: int, hidden_net_feats: int, hidden_pin_feats: int, hidden_edge_feats: int,
-                 out_node_feats: int, out_net_feats: int,
-                 use_topo_edge, use_geom_edge):
+                 out_node_feats: int, out_net_feats: int, topo_conv_type, geom_conv_type):
         super(NodeNetGNN, self).__init__()
-        self.use_topo_edge = use_topo_edge
-        self.use_geom_edge = use_geom_edge
+        assert topo_conv_type in ['MPNN', 'SAGE', 'CFCNN', 'GCN'], f'{topo_conv_type} not in MPNN/SAGE/CFCNN/GCN'
+        assert geom_conv_type in ['MPNN', 'SAGE', 'CFCNN', 'GCN'], f'{geom_conv_type} not in MPNN/SAGE/CFCNN/GCN'
+        self.topo_conv_type = topo_conv_type
+        self.geom_conv_type = geom_conv_type
         self.net_lin = nn.Linear(hidden_net_feats, hidden_net_feats)
-#         self.topo_lin = nn.Linear(hidden_pin_feats, hidden_net_feats * out_node_feats)
-#         self.geom_lin = nn.Linear(hidden_edge_feats, hidden_node_feats * out_node_feats)
-#         self.topo_weight = nn.Linear(hidden_pin_feats, 1)
+        self.topo_lin = nn.Linear(hidden_pin_feats, hidden_net_feats * out_node_feats)
+        self.geom_lin = nn.Linear(hidden_edge_feats, hidden_node_feats * out_node_feats)
+        self.topo_weight = nn.Linear(hidden_pin_feats, 1)
         self.geom_weight = nn.Linear(hidden_edge_feats, 1)
 
-#         def topo_edge_func(efeat):
-#             return self.topo_lin(efeat)
+        def topo_edge_func(efeat):
+            return self.topo_lin(efeat)
 
-#         def geom_edge_func(efeat):
-#             return self.geom_lin(efeat)
+        def geom_edge_func(efeat):
+            return self.geom_lin(efeat)
         
         def my_agg_func(tensors, dsttype):
             new_tensors = []
@@ -38,17 +39,21 @@ class NodeNetGNN(nn.Module):
         self.hetero_conv = HeteroGraphConv({
             'pins': GraphConv(in_feats=hidden_node_feats, out_feats=out_net_feats),
             'pinned':
-#                 NNConv(in_feats=hidden_net_feats, out_feats=out_node_feats, edge_func=topo_edge_func)
-#                 SAGEConv(in_feats=(hidden_net_feats, hidden_node_feats), out_feats=out_node_feats, aggregator_type='pool')
+                NNConv(in_feats=hidden_net_feats, out_feats=out_node_feats,
+                       edge_func=topo_edge_func) if topo_conv_type == 'MPNN' else
+                SAGEConv(in_feats=(hidden_net_feats, hidden_node_feats), out_feats=out_node_feats,
+                         aggregator_type='pool') if topo_conv_type == 'SAGE' else
                 CFConv(node_in_feats=hidden_net_feats, edge_in_feats=hidden_pin_feats,
-                       hidden_feats=hidden_node_feats, out_feats=out_node_feats)
-            if use_topo_edge else GraphConv(in_feats=hidden_net_feats, out_feats=out_node_feats),
+                       hidden_feats=hidden_node_feats, out_feats=out_node_feats) if topo_conv_type == 'CFCNN' else
+                GraphConv(in_feats=hidden_net_feats, out_feats=out_node_feats),
             'near':
-#                 NNConv(in_feats=hidden_node_feats, out_feats=out_node_feats, edge_func=geom_edge_func)
-                SAGEConv(in_feats=hidden_node_feats, out_feats=out_node_feats, aggregator_type='pool')
-#                 CFConv(node_in_feats=hidden_node_feats, edge_in_feats=hidden_edge_feats,
-#                        hidden_feats=hidden_node_feats, out_feats=out_node_feats)
-            if use_geom_edge else GATConv(in_feats=hidden_node_feats, out_feats=out_node_feats, num_heads=1),
+                NNConv(in_feats=hidden_node_feats, out_feats=out_node_feats,
+                       edge_func=geom_edge_func) if geom_conv_type == 'MPNN' else
+                SAGEConv(in_feats=hidden_node_feats, out_feats=out_node_feats,
+                         aggregator_type='pool') if geom_conv_type == 'SAGE' else
+                CFConv(node_in_feats=hidden_node_feats, edge_in_feats=hidden_edge_feats,
+                       hidden_feats=hidden_node_feats, out_feats=out_node_feats) if geom_conv_type == 'CFCNN' else
+                GATConv(in_feats=hidden_node_feats, out_feats=out_node_feats, num_heads=1),
         }, aggregate=my_agg_func)
 
     def forward(self, g: dgl.DGLHeteroGraph, node_feat: torch.Tensor, net_feat: torch.Tensor,
@@ -60,14 +65,18 @@ class NodeNetGNN(nn.Module):
         }
 
         mod_kwargs = {}
-        if self.use_topo_edge:
-#             mod_kwargs['pinned'] = {'efeat': pin_feat}
-#             mod_kwargs['pinned'] = {'edge_weight': torch.sigmoid(self.topo_weight(pin_feat))}
+        if self.topo_conv_type == 'MPNN':
+            mod_kwargs['pinned'] = {'efeat': pin_feat}
+        elif self.topo_conv_type == 'SAGE':
+            mod_kwargs['pinned'] = {'edge_weight': torch.sigmoid(self.topo_weight(pin_feat))}
+        elif self.topo_conv_type == 'CFCNN':
             mod_kwargs['pinned'] = {'edge_feats': pin_feat}
-        if self.use_geom_edge:
-#             mod_kwargs['near'] = {'efeat': edge_feat}
+        if self.geom_conv_type == 'MPNN':
+            mod_kwargs['near'] = {'efeat': edge_feat}
+        elif self.geom_conv_type == 'SAGE':
             mod_kwargs['near'] = {'edge_weight': torch.sigmoid(self.geom_weight(edge_feat))}
-#             mod_kwargs['near'] = {'edge_feats': edge_feat}
+        elif self.geom_conv_type == 'CFCNN':
+            mod_kwargs['near'] = {'edge_feats': edge_feat}
 
         h1 = self.hetero_conv.forward(g, h, mod_kwargs=mod_kwargs)
 
@@ -79,7 +88,7 @@ class NetlistGNN(nn.Module):
     def __init__(self, in_node_feats: int, in_net_feats: int, in_pin_feats: int, in_edge_feats: int,
                  n_target: int, config: Dict[str, Any],
                  activation: str = 'sig', recurrent=False,
-                 use_topo_edge=True, use_geom_edge=True):
+                 topo_conv_type='CFCNN', geom_conv_type='SAGE'):
         super(NetlistGNN, self).__init__()
         self.recurrent = recurrent
 
@@ -102,12 +111,12 @@ class NetlistGNN(nn.Module):
         if self.recurrent:
             self.node_net_gnn = NodeNetGNN(self.hidden_node_feats, self.hidden_net_feats,
                                            self.hidden_pin_feats, self.hidden_edge_feats,
-                                           self.out_node_feats, self.out_net_feats, use_topo_edge, use_geom_edge)
+                                           self.out_node_feats, self.out_net_feats, topo_conv_type, geom_conv_type)
         else:
             self.list_node_net_gnn = nn.ModuleList(
                 [NodeNetGNN(self.hidden_node_feats, self.hidden_net_feats,
                             self.hidden_pin_feats, self.hidden_edge_feats,
-                            self.out_node_feats, self.out_net_feats, use_topo_edge, use_geom_edge) for _ in range(self.n_layer)])
+                            self.out_node_feats, self.out_net_feats, topo_conv_type, geom_conv_type) for _ in range(self.n_layer)])
         self.n_target = n_target
         self.output_layer_1 = nn.Linear(self.in_node_feats + self.hidden_node_feats, self.hidden_node_feats)
         self.output_layer_2 = nn.Linear(self.hidden_node_feats, self.hidden_node_feats)

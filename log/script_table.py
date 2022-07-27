@@ -62,6 +62,7 @@ PLT_TUPLES_3 = [
     ('GraphSAGE', 'superblue19/SAGE.json'),
     ('GAT', 'superblue19/GAT.json'),
     ('CongestionNet', 'superblue19/CongestionNet.json'),
+    ('MPNN', 'superblue19/hyper-MPNN.json'),
     ('Ours (o. topo.)', 'superblue19/hyper-topo.json'),
     ('line', ''),
 
@@ -70,6 +71,7 @@ PLT_TUPLES_3 = [
     ('LHNN', 'superblue19/LHNN.json'),
     ('Ours (o. geom.)', 'superblue19/hyper-geom.json'),
 #     ('Ours (small)', 'superblue19/hyper-small.json'),
+    ('Ours (geom. alt. conv.)', 'superblue19/hyper-geomCF.json'),
     ('Ours', 'superblue19/hyper.json'),
     ('line', ''),
     

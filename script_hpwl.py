@@ -46,8 +46,8 @@ argparser.add_argument('--pin_feats', type=int, default=16)  # 16
 argparser.add_argument('--edge_feats', type=int, default=4)  # 4
 argparser.add_argument('--topo_geom', type=str, default='both')  # default
 argparser.add_argument('--recurrent', type=bool, default=False)  # False
-argparser.add_argument('--use_topo_edge', type=bool, default=True)  # True
-argparser.add_argument('--use_geom_edge', type=bool, default=True)  # True
+argparser.add_argument('--topo_conv_type', type=str, default='CFCNN')  # CFCNN
+argparser.add_argument('--geom_conv_type', type=str, default='SAGE')  # SAGE
 argparser.add_argument('--pos_code', type=float, default=0.0)  # 0.0
 
 argparser.add_argument('--seed', type=int, default=0)
@@ -165,7 +165,7 @@ model = NetlistGNN(
     activation=args.outtype,
     config=config,
     recurrent=args.recurrent,
-    use_topo_edge=args.use_topo_edge, use_geom_edge=args.use_geom_edge
+    topo_conv_type=args.topo_conv_type, geom_conv_type=args.geom_conv_type
 ).to(device)
 n_param = 0
 for name, param in model.named_parameters():
