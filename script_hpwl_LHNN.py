@@ -31,7 +31,7 @@ argparser.add_argument('--train_batch', type=int, default=1)
 argparser.add_argument('--batch', type=int, default=128)
 argparser.add_argument('--lr', type=float, default=1e-5)
 argparser.add_argument('--lr_decay', type=float, default=1e-1)
-argparser.add_argument('--dim', type=float, default=32)
+argparser.add_argument('--dim', type=int, default=32)
 
 argparser.add_argument('--seed', type=int, default=0)
 argparser.add_argument('--device', type=str, default='cuda:0')
