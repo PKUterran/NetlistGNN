@@ -27,6 +27,8 @@ python script_train_ganroute.py --name GanRoute
 
 # LHNN
 python script_train_LHNN.py --name LHNN
+python script_train_LHNN.py --name LHNN-d16 --dim 16
+python script_train_LHNN.py --name LHNN-d64 --dim 64
 
 # sensitivity
 ## generate
