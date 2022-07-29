@@ -1,5 +1,6 @@
-python script_train.py --name hyper-MPNN --topo_geom topo -topo_conv_type MPNN
-python script_train.py --name hyper-geomCF -geom_conv_type CFCNN
+python script_train.py --name hyper-MPNN --topo_geom topo --topo_conv_type MPNN
+python script_train.py --name hyper-geomCF --geom_conv_type CFCNN
+python script_train.py --name hyper-topoSAGE --topo_conv_type SAGE
 python script_train.py --name hyper-pos --topo_geom topo --add_pos True
 
 # Ours

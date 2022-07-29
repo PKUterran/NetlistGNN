@@ -291,10 +291,10 @@ for epoch in range(0, args.epochs + 1):
         outputdata = outputdata[:p, :]
         #         print(f'\t\ttarget/predict: {np.max(outputdata[:, 0]):.3f}, {np.max(outputdata[:, 1]):.3f}')
         #         exit(123)
-        # if args.topo_geom != 'topo':
-        #     bad_node = np.logical_or(outputdata[:, 4] < 0.5, outputdata[:, 4] > 17.5)
+        if args.topo_geom != 'topo':
+            bad_node = np.logical_or(outputdata[:, 4] < 0.5, outputdata[:, 4] > 17.5)
         #                 bad_node = outputdata[:, 4] < 2.5
-        #     outputdata[bad_node, 1] = outputdata[bad_node, 0]
+            outputdata[bad_node, 1] = outputdata[bad_node, 0]
         #             outputdata = outputdata[np.logical_and(outputdata[:, 4] > 0, outputdata[:, 4] < 5), :]
         #             outputdata = outputdata[outputdata[:, 4] > 5, :]
         #         worst = np.argpartition(np.abs(outputdata[:, 0] - outputdata[:, 1]),-5)[-5:]

@@ -72,6 +72,7 @@ PLT_TUPLES_3 = [
     ('LHNN', 'superblue19/LHNN.json'),
     ('Ours (o. geom.)', 'superblue19/hyper-geom.json'),
 #     ('Ours (small)', 'superblue19/hyper-small.json'),
+    ('Ours (topo. alt. conv.)', 'superblue19/hyper-topoSAGE.json'),
     ('Ours (geom. alt. conv.)', 'superblue19/hyper-geomCF.json'),
     ('Ours', 'superblue19/hyper.json'),
     ('line', ''),
