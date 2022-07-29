@@ -8,7 +8,7 @@ from typing import Tuple, Dict, Any, List, Union
 
 class NodeNetGNN(nn.Module):
     def __init__(self, hidden_node_feats: int, hidden_net_feats: int, hidden_pin_feats: int, hidden_edge_feats: int,
-                 out_node_feats: int, out_net_feats: int, topo_conv_type, geom_conv_type):
+                 out_node_feats: int, out_net_feats: int, topo_conv_type, geom_conv_type, agg_type):
         super(NodeNetGNN, self).__init__()
         assert topo_conv_type in ['MPNN', 'SAGE', 'CFCNN', 'GCN'], f'{topo_conv_type} not in MPNN/SAGE/CFCNN/GCN'
         assert geom_conv_type in ['MPNN', 'SAGE', 'CFCNN', 'GCN'], f'{geom_conv_type} not in MPNN/SAGE/CFCNN/GCN'
@@ -54,7 +54,7 @@ class NodeNetGNN(nn.Module):
                 CFConv(node_in_feats=hidden_node_feats, edge_in_feats=hidden_edge_feats,
                        hidden_feats=hidden_node_feats, out_feats=out_node_feats) if geom_conv_type == 'CFCNN' else
                 GATConv(in_feats=hidden_node_feats, out_feats=out_node_feats, num_heads=1),
-        }, aggregate=my_agg_func)
+        }, aggregate=agg_type)
 
     def forward(self, g: dgl.DGLHeteroGraph, node_feat: torch.Tensor, net_feat: torch.Tensor,
                 pin_feat: torch.Tensor, edge_feat: torch.Tensor,
@@ -88,7 +88,7 @@ class NetlistGNN(nn.Module):
     def __init__(self, in_node_feats: int, in_net_feats: int, in_pin_feats: int, in_edge_feats: int,
                  n_target: int, config: Dict[str, Any],
                  activation: str = 'sig', recurrent=False,
-                 topo_conv_type='CFCNN', geom_conv_type='SAGE'):
+                 topo_conv_type='CFCNN', geom_conv_type='SAGE', agg_type='max', cat_raw=True):
         super(NetlistGNN, self).__init__()
         self.recurrent = recurrent
 
@@ -103,6 +103,7 @@ class NetlistGNN(nn.Module):
         self.hidden_pin_feats = config['PIN_FEATS']
         self.hidden_edge_feats = config['EDGE_FEATS']
         self.hidden_net_feats = self.out_net_feats
+        self.cat_raw = cat_raw
 
         self.node_lin = nn.Linear(self.in_node_feats, self.hidden_node_feats)
         self.net_lin = nn.Linear(self.in_net_feats, self.hidden_net_feats)
@@ -111,17 +112,23 @@ class NetlistGNN(nn.Module):
         if self.recurrent:
             self.node_net_gnn = NodeNetGNN(self.hidden_node_feats, self.hidden_net_feats,
                                            self.hidden_pin_feats, self.hidden_edge_feats,
-                                           self.out_node_feats, self.out_net_feats, topo_conv_type, geom_conv_type)
+                                           self.out_node_feats, self.out_net_feats,
+                                           topo_conv_type, geom_conv_type, agg_type)
         else:
             self.list_node_net_gnn = nn.ModuleList(
                 [NodeNetGNN(self.hidden_node_feats, self.hidden_net_feats,
                             self.hidden_pin_feats, self.hidden_edge_feats,
-                            self.out_node_feats, self.out_net_feats, topo_conv_type, geom_conv_type) for _ in range(self.n_layer)])
+                            self.out_node_feats, self.out_net_feats,
+                            topo_conv_type, geom_conv_type, agg_type) for _ in range(self.n_layer)])
         self.n_target = n_target
-        self.output_layer_1 = nn.Linear(self.in_node_feats + self.hidden_node_feats, self.hidden_node_feats)
+        if cat_raw:
+            self.output_layer_1 = nn.Linear(self.in_node_feats + self.hidden_node_feats, self.hidden_node_feats)
+            self.output_layer_net_1 = nn.Linear(self.in_net_feats + self.hidden_net_feats, self.hidden_net_feats)
+        else:
+            self.output_layer_1 = nn.Linear(self.hidden_node_feats, self.hidden_node_feats)
+            self.output_layer_net_1 = nn.Linear(self.hidden_net_feats, self.hidden_net_feats)
         self.output_layer_2 = nn.Linear(self.hidden_node_feats, self.hidden_node_feats)
         self.output_layer_3 = nn.Linear(self.hidden_node_feats, self.n_target)
-        self.output_layer_net_1 = nn.Linear(self.in_net_feats + self.hidden_net_feats, self.hidden_net_feats)
         self.output_layer_net_2 = nn.Linear(self.hidden_net_feats, self.hidden_net_feats)
         self.output_layer_net_3 = nn.Linear(self.hidden_net_feats, 1)
         self.output_layer_net_x1 = nn.Linear(self.in_net_feats, 64)
@@ -149,12 +156,15 @@ class NetlistGNN(nn.Module):
                     node_net_graph, node_feat, net_feat, pin_feat, edge_feat)
             node_feat, net_feat = F.leaky_relu(node_feat), F.leaky_relu(net_feat)
 
+        if self.cat_raw:
+            node_feat = torch.cat([in_node_feat, node_feat], dim=-1)
+            net_feat = torch.cat([in_net_feat, net_feat], dim=-1)
         output_predictions = self.output_layer_3(F.leaky_relu(
             self.output_layer_2(F.leaky_relu(
-                self.output_layer_1(torch.cat([in_node_feat, node_feat], dim=-1))
+                self.output_layer_1(node_feat)
             ))
         ))
-        net_feat1 = net_feat0 + F.relu(self.output_layer_net_1(torch.cat([in_net_feat, net_feat], dim=-1)))
+        net_feat1 = net_feat0 + F.relu(self.output_layer_net_1(net_feat))
         net_feat2 = net_feat1 + F.relu(self.output_layer_net_2(net_feat1))
         net_feat3 = self.output_layer_net_3(net_feat2)
         net_feat_x1 = self.output_layer_net_x1(in_net_feat)

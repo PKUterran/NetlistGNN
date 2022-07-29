@@ -49,6 +49,8 @@ argparser.add_argument('--add_pos', type=bool, default=False)  # False
 argparser.add_argument('--recurrent', type=bool, default=False)  # False
 argparser.add_argument('--topo_conv_type', type=str, default='CFCNN')  # CFCNN
 argparser.add_argument('--geom_conv_type', type=str, default='SAGE')  # SAGE
+argparser.add_argument('--agg_type', type=str, default='max')  # max
+argparser.add_argument('--cat_raw', type=bool, default=True)  # True
 argparser.add_argument('--pos_code', type=float, default=0.0)  # 0.0
 
 argparser.add_argument('--seed', type=int, default=0)
@@ -164,7 +166,10 @@ model = NetlistGNN(
     activation=args.outtype,
     config=config,
     recurrent=args.recurrent,
-    topo_conv_type=args.topo_conv_type, geom_conv_type=args.geom_conv_type
+    topo_conv_type=args.topo_conv_type,
+    geom_conv_type=args.geom_conv_type,
+    agg_type=args.agg_type,
+    cat_raw=args.cat_raw
 ).to(device)
 n_param = 0
 for name, param in model.named_parameters():
