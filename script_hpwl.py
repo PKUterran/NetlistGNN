@@ -39,6 +39,7 @@ argparser.add_argument('--win_x', type=float, default=32)
 argparser.add_argument('--win_y', type=float, default=40)
 argparser.add_argument('--win_cap', type=int, default=5)
 
+argparser.add_argument('--model', type=str, default='')  # 3
 argparser.add_argument('--layers', type=int, default=3)  # 3
 argparser.add_argument('--node_feats', type=int, default=64)  # 64
 argparser.add_argument('--net_feats', type=int, default=128)  # 128
@@ -167,6 +168,9 @@ model = NetlistGNN(
     recurrent=args.recurrent,
     topo_conv_type=args.topo_conv_type, geom_conv_type=args.geom_conv_type
 ).to(device)
+if args.model:
+    model_dicts = torch.load(f'model/{args.model}.pkl', map_location=device)
+    model.load_state_dict(model_dicts)
 n_param = 0
 for name, param in model.named_parameters():
     print(f'\t{name}: {param.shape}')

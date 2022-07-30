@@ -195,6 +195,10 @@ if not os.path.isdir(LOG_DIR):
 FIG_DIR = 'log/temp'
 if not os.path.isdir(FIG_DIR):
     os.mkdir(FIG_DIR)
+MODEL_DIR = 'model'
+if not os.path.isdir(MODEL_DIR):
+    os.mkdir(MODEL_DIR)
+best_rmse = 1e8
 
 
 def to_device(a, b):
@@ -305,6 +309,12 @@ for epoch in range(0, args.epochs + 1):
         #         worst = np.argpartition(np.abs(outputdata[:, 0] - outputdata[:, 1]),-5)[-5:]
         #         print(f'\t\tworst:\n{outputdata[worst, :]}')
         d = printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
+        if set_name == 'validate_':
+            rmse = d[f'{set_name}rmse']
+            global best_rmse
+            if rmse < best_rmse:
+                best_rmse = rmse
+                torch.save(model.state_dict(), f'{MODEL_DIR}/{args.name}.pkl')
         logs[-1].update(d)
         if single_net:
             if set_name == 'test_' and args.test == 'superblue19':
