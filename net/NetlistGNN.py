@@ -135,6 +135,10 @@ class NetlistGNN(nn.Module):
         self.output_layer_net_x2 = nn.Linear(64, 64)
         self.output_layer_net_x3 = nn.Linear(64, 1)
         self.activation = activation
+        self.net_readout_params = [
+            self.output_layer_net_1, self.output_layer_net_2, self.output_layer_net_3,
+            self.output_layer_net_x1, self.output_layer_net_x2, self.output_layer_net_x3,
+        ]
 
     def forward(self, in_node_feat: torch.Tensor, in_net_feat: torch.Tensor,
                 in_pin_feat: torch.Tensor, in_edge_feat: torch.Tensor,

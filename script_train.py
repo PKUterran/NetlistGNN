@@ -310,10 +310,11 @@ for epoch in range(0, args.epochs + 1):
         #         print(f'\t\tworst:\n{outputdata[worst, :]}')
         d = printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
         if set_name == 'validate_':
-            rmse = d[f'{set_name}rmse']
+            rmse = d[f'{set_name}node_level_rmse']
             global best_rmse
             if rmse < best_rmse:
                 best_rmse = rmse
+                print(f'\tSaving model to {MODEL_DIR}/ ...:')
                 torch.save(model.state_dict(), f'{MODEL_DIR}/{args.name}.pkl')
         logs[-1].update(d)
         if single_net:
