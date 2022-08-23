@@ -1,9 +1,3 @@
-网址：https://www.matpool.com/
-账号：18810918830
-密码：sgj_fzbz_pku1898
-https://hz-t3.matpool.com:27838?token=khtqG9PjqB
-
-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
 
 ssh -p 27928 ysw@hz.matpool.com
 ssh -p 27928 root@hz.matpool.com

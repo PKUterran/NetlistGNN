@@ -100,7 +100,7 @@ n_validate_node = sum(map(lambda x: x[1].shape[0], validate_list_tensors))
 n_test_node = sum(map(lambda x: x[1].shape[0], test_list_tensors))
 
 print('##### MODEL #####')
-model = LHNN(4, 4, dim=args.dim).to(device)
+model = LHNN(4, 4, dim=int(args.dim)).to(device)
 n_param = 0
 for name, param in model.named_parameters():
     print(f'\t{name}: {param.shape}')

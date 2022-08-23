@@ -30,3 +30,7 @@ python script_hpwl_net2.py --name Net2a --model net2a --topo_geom topo
 
 # eval
 python script_hpwl.py 
+
+# transfer
+python script_hpwl.py --name hyper-trans --model hyper --trans True --layers 2
+python script_hpwl.py --name hyper-ft --model hyper --layers 2

@@ -50,12 +50,16 @@ def plt_tendency(logs: List[Dict[str, Any]], fig_path: str) -> Dict[str, Any]:
 
 
 PLT_TUPLES = [
-    ('MLP', 'hpwl-superblue19/MLP.json'),
-    ('Net2f-topo', 'hpwl-superblue19/Net2f.json'),
-    ('Net2a-topo', 'hpwl-superblue19/Net2a.json'),
-    ('LHNN', 'hpwl-superblue19/LHNN.json'),
+#     ('MLP', 'hpwl-superblue19/MLP.json'),
+#     ('Net2f-topo', 'hpwl-superblue19/Net2f.json'),
+#     ('Net2a-topo', 'hpwl-superblue19/Net2a.json'),
+#     ('LHNN', 'hpwl-superblue19/LHNN.json'),
+#     ('Ours', 'hpwl-superblue19/hyper.json'),
+#     ('Ours-topo', 'hpwl-superblue19/hyper-topo.json'),
+    
+    ('Ours (evaluate)', 'hpwl-superblue19/hyper-trans.json'),
     ('Ours', 'hpwl-superblue19/hyper.json'),
-    ('Ours-topo', 'hpwl-superblue19/hyper-topo.json'),
+    ('Ours (fine-tune)', 'hpwl-superblue19/hyper-ft.json'),
 ]
 
 if __name__ == '__main__':
