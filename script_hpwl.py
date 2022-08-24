@@ -11,7 +11,7 @@ import dgl
 import torch
 import torch.nn as nn
 
-from data.load_data import load_data
+from data.load_data import load_data, NODE_TOPO_FEAT, NET_TOPO_FEAT
 from net.NetlistGNN import NetlistGNN
 from log.store_scatter import store_scatter
 from utils.output import printout_xf1
@@ -83,22 +83,22 @@ config = {
 }
 
 # train_dataset_names = [
-#     'superblue_0425_withHPWL/superblue6_processed',
+#     'superblue_0425_withHPWL/superblue6',
 # ]
-# validate_dataset_name = 'superblue_0425_withHPWL/superblue6_processed'
-# test_dataset_name = f'superblue_0425_withHPWL/superblue6_processed'
+# validate_dataset_name = 'superblue_0425_withHPWL/superblue6'
+# test_dataset_name = f'superblue_0425_withHPWL/superblue6'
 
 train_dataset_names = [
-    'superblue_0425_withHPWL/superblue3_processed',
-    'superblue_0425_withHPWL/superblue6_processed',
-    'superblue_0425_withHPWL/superblue7_processed',
-    'superblue_0425_withHPWL/superblue9_processed',
-    'superblue_0425_withHPWL/superblue11_processed',
-    'superblue_0425_withHPWL/superblue12_processed',
-    'superblue_0425_withHPWL/superblue14_processed',
+    'superblue_0425_withHPWL/superblue3',
+    'superblue_0425_withHPWL/superblue6',
+    'superblue_0425_withHPWL/superblue7',
+    'superblue_0425_withHPWL/superblue9',
+    'superblue_0425_withHPWL/superblue11',
+    'superblue_0425_withHPWL/superblue12',
+    'superblue_0425_withHPWL/superblue14',
 ]
-validate_dataset_name = 'superblue_0425_withHPWL/superblue16_processed'
-test_dataset_name = f'superblue_0425_withHPWL/{args.test}_processed'
+validate_dataset_name = 'superblue_0425_withHPWL/superblue16'
+test_dataset_name = f'superblue_0425_withHPWL/{args.test}'
 
 train_list_tuple_graph, validate_list_tuple_graph, test_list_tuple_graph = [], [], []
 
@@ -156,8 +156,8 @@ in_node_feats = train_list_tuple_graph[0][1].nodes['node'].data['hv'].shape[1]
 in_net_feats = train_list_tuple_graph[0][1].nodes['net'].data['hv'].shape[1]
 in_pin_feats = train_list_tuple_graph[0][1].edges['pinned'].data['he'].shape[1]
 if args.topo_geom == 'topo':
-    in_node_feats = 6
-    in_net_feats = 1
+    in_node_feats = len(NODE_TOPO_FEAT)
+    in_net_feats = len(NET_TOPO_FEAT)
 model = NetlistGNN(
     in_node_feats=in_node_feats,
     in_net_feats=in_net_feats,
@@ -226,8 +226,8 @@ for epoch in range(0, args.epochs + 1):
             if args.pos_code > 1e-5 and args.topo_geom != 'topo':
                 in_node_feat += args.pos_code * hetero_graph.nodes['node'].data['pos_code']
             if args.topo_geom == 'topo':
-                in_node_feat = in_node_feat[:, [0, 1, 2, 7, 8, 9]]
-                in_net_feat = in_net_feat[:, [0]]
+                in_node_feat = in_node_feat[:, NODE_TOPO_FEAT]
+                in_net_feat = in_net_feat[:, NET_TOPO_FEAT]
             _, pred = model.forward(
                 in_node_feat=in_node_feat,
                 in_net_feat=in_net_feat,
@@ -261,8 +261,8 @@ for epoch in range(0, args.epochs + 1):
                 if args.pos_code > 1e-5 and args.topo_geom != 'topo':
                     in_node_feat += args.pos_code * hetero_graph.nodes['node'].data['pos_code']
                 if args.topo_geom == 'topo':
-                    in_node_feat = in_node_feat[:, [0, 1, 2, 7, 8, 9]]
-                    in_net_feat = in_net_feat[:, [0]]
+                    in_node_feat = in_node_feat[:, NODE_TOPO_FEAT]
+                    in_net_feat = in_net_feat[:, NET_TOPO_FEAT]
                 _, prd = model.forward(
                     in_node_feat=in_node_feat,
                     in_net_feat=in_net_feat,

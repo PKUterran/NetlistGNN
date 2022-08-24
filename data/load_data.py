@@ -93,28 +93,32 @@ def feature_grid2node(grid_feature: np.ndarray, bin_x, bin_y, xdata, ydata) -> n
     ], dtype=np.float)
 
 
+NODE_TOPO_FEAT = [0, 1, 2, 7, 8, 9]
+NET_TOPO_FEAT = [0]
+
+
 def load_data(dir_name: str, given_iter, index: int, hashcode: str,
               graph_scale: int = 1000, bin_x: float = 32, bin_y: float = 40, force_save=False, use_tqdm=True,
               app_name='', win_x: float = 32, win_y: float = 40, win_cap=5
               ) -> List[Tuple[dgl.DGLGraph, dgl.DGLHeteroGraph]]:
-    file_path = f'{dir_name}/hetero{app_name}_{given_iter}.pickle'
+    processed_dir_name = f'{dir_name}_processed'
+    file_path = f'{processed_dir_name}/hetero{app_name}_{given_iter}.pickle'
     if os.path.exists(file_path) and not force_save:
         with open(file_path, 'rb') as fp:
             list_tuple_graph = pickle.load(fp)
         return list_tuple_graph
 
-    with open(f'{dir_name}/edge.pkl', 'rb') as fp:
+    with open(f'{processed_dir_name}/edge.pkl', 'rb') as fp:
         edge = pickle.load(fp)
-    sizdata_x = np.load(f'{dir_name}/sizdata_x.npy')
-    sizdata_y = np.load(f'{dir_name}/sizdata_y.npy')
-    pdata = np.load(f'{dir_name}/pdata.npy')
-    xdata = np.load(f'{dir_name}/xdata_{given_iter}.npy')
-    ydata = np.load(f'{dir_name}/ydata_{given_iter}.npy')
-    raw_dir_name = dir_name[:-10]
-    h_net_density_grid = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_h.npy')
-    v_net_density_grid = np.load(f'{raw_dir_name}/iter_{given_iter}_bad_cmap_v.npy')
-    if os.path.exists(f'{raw_dir_name}/iter_{given_iter}_net2hpwl.npy'):
-        net2hpwl = np.load(f'{raw_dir_name}/iter_{given_iter}_net2hpwl.npy')
+    sizdata_x = np.load(f'{processed_dir_name}/sizdata_x.npy')
+    sizdata_y = np.load(f'{processed_dir_name}/sizdata_y.npy')
+    pdata = np.load(f'{processed_dir_name}/pdata.npy')
+    xdata = np.load(f'{processed_dir_name}/xdata_{given_iter}.npy')
+    ydata = np.load(f'{processed_dir_name}/ydata_{given_iter}.npy')
+    h_net_density_grid = np.load(f'{dir_name}/iter_{given_iter}_bad_cmap_h.npy')
+    v_net_density_grid = np.load(f'{dir_name}/iter_{given_iter}_bad_cmap_v.npy')
+    if os.path.exists(f'{dir_name}/iter_{given_iter}_net2hpwl.npy'):
+        net2hpwl = np.load(f'{dir_name}/iter_{given_iter}_net2hpwl.npy')
         net2hpwl[net2hpwl < 1e-4] = 1e-4
         net2hpwl = np.log10(net2hpwl)
     else:
@@ -122,7 +126,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     pin_density_grid = get_pin_density(h_net_density_grid.shape, bin_x, bin_y, xdata, ydata, edge)
     node_density_grid = get_node_density(h_net_density_grid.shape, bin_x, bin_y, xdata, ydata)
 
-    labels = np.load(f'{dir_name}/iter_{given_iter}_node_label_full_{hashcode}_.npy')
+    labels = np.load(f'{processed_dir_name}/iter_{given_iter}_node_label_full_{hashcode}_.npy')
     labels = labels[:, index]
     n_node = labels.shape[0]
 

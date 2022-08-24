@@ -22,17 +22,17 @@ argparser.add_argument('--win_cap', type=int, default=5)
 args = argparser.parse_args()
 
 dataset_names = [
-    'superblue1_processed',
-    'superblue2_processed',
-    'superblue3_processed',
-    'superblue5_processed',
-    'superblue6_processed',
-    'superblue7_processed',
-    'superblue9_processed',
-    'superblue11_processed',
-    'superblue14_processed',
-    'superblue16_processed',
-    'superblue19_processed',
+    'superblue1',
+    'superblue2',
+    'superblue3',
+    'superblue5',
+    'superblue6',
+    'superblue7',
+    'superblue9',
+    'superblue11',
+    'superblue14',
+    'superblue16',
+    'superblue19',
 ]
 
 for dataset_name in dataset_names:

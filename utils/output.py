@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import pearsonr, spearmanr, kendalltau
 
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, List
 from sklearn.metrics import precision_score, recall_score, f1_score
 
 
@@ -30,7 +30,7 @@ def printout_xf1(arr1, arr2, prefix="", log_prefix="") -> Dict[str, Any]:
     }
 
 
-def printout(arr1, arr2, prefix="", log_prefix="") -> Dict[str, Any]:
+def printout(arr1, arr2, prefix="", log_prefix="") -> Dict[str, float]:
     pearsonr_rho, pearsonr_pval = pearsonr(arr1, arr2)
     spearmanr_rho, spearmanr_pval = spearmanr(arr1, arr2)
     kendalltau_rho, kendalltau_pval = kendalltau(arr1, arr2)
@@ -74,7 +74,7 @@ def rademacher(intensity, numindices):
 
 
 def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name=''
-                        ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+                        ) -> Tuple[Dict[str, float], Dict[str, float]]:
     nodetarg, nodepred, posx, posy = [posandpred[:, i] for i in range(0, posandpred.shape[1])]
     cmap_tgt = np.zeros((xgridshape, ygridshape))
     cmap_prd, supp = np.zeros_like(cmap_tgt), np.zeros_like(cmap_tgt)
@@ -107,6 +107,14 @@ def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name
                   "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
     d2 = printout(nctu, pred, "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
     return d1, d2
+
+
+def mean_dict(dicts: List[Dict[str, float]]) -> Dict[str, float]:
+    full_dict: Dict[str, List[float]] = {}
+    for d in dicts:
+        for k, v in d.items():
+            full_dict.setdefault(k, []).append(v)
+    return {k: sum(vs) / len(vs) for k, vs in full_dict.items()}
 
 
 if __name__ == '__main__':

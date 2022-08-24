@@ -81,10 +81,10 @@ config = {
 }
 
 train_dataset_names = [
-    f'{args.test}_processed',
+    f'{args.test}',
 ]
-validate_dataset_name = f'{args.test}_processed'
-test_dataset_name = f'{args.test}_processed'
+validate_dataset_name = f'{args.test}'
+test_dataset_name = f'{args.test}'
 
 train_list_tuple_graph, validate_list_tuple_graph, test_list_tuple_graph = [], [], []
 

@@ -11,7 +11,7 @@ import dgl
 import torch
 import torch.nn as nn
 
-from data.load_data import load_data
+from data.load_data import load_data, NODE_TOPO_FEAT, NET_TOPO_FEAT
 from net.NetlistGNN import NetlistGNN
 from log.store_cong import store_cong_from_node
 from utils.output import printout, get_grid_level_corr
@@ -39,6 +39,8 @@ argparser.add_argument('--win_x', type=float, default=32)
 argparser.add_argument('--win_y', type=float, default=40)
 argparser.add_argument('--win_cap', type=int, default=5)
 
+argparser.add_argument('--model', type=str, default='')  # ''
+argparser.add_argument('--trans', type=bool, default=False)  # ''
 argparser.add_argument('--layers', type=int, default=2)  # 2
 argparser.add_argument('--node_feats', type=int, default=64)  # 64
 argparser.add_argument('--net_feats', type=int, default=128)  # 128
@@ -84,18 +86,18 @@ config = {
 }
 
 train_dataset_names = [
-    'superblue1_processed',
-    'superblue2_processed',
-    'superblue3_processed',
-    'superblue5_processed',
-    'superblue6_processed',
-    'superblue7_processed',
-    'superblue9_processed',
-    'superblue11_processed',
-    'superblue14_processed',
+    'superblue1',
+    'superblue2',
+    'superblue3',
+    'superblue5',
+    'superblue6',
+    'superblue7',
+    'superblue9',
+    'superblue11',
+    'superblue14',
 ]
-validate_dataset_name = 'superblue16_processed'
-test_dataset_name = f'{args.test}_processed'
+validate_dataset_name = 'superblue16'
+test_dataset_name = f'{args.test}'
 
 train_list_tuple_graph, validate_list_tuple_graph, test_list_tuple_graph = [], [], []
 
@@ -153,8 +155,8 @@ in_node_feats = train_list_tuple_graph[0][1].nodes['node'].data['hv'].shape[1]
 in_net_feats = train_list_tuple_graph[0][1].nodes['net'].data['hv'].shape[1]
 in_pin_feats = train_list_tuple_graph[0][1].edges['pinned'].data['he'].shape[1]
 if args.topo_geom == 'topo':
-    in_node_feats = 6
-    in_net_feats = 1
+    in_node_feats = len(NODE_TOPO_FEAT)
+    in_net_feats = len(NET_TOPO_FEAT)
 if args.add_pos:
     in_node_feats += 2
 model = NetlistGNN(
@@ -171,6 +173,10 @@ model = NetlistGNN(
     agg_type=args.agg_type,
     cat_raw=args.cat_raw
 ).to(device)
+if args.model:
+    model_dicts = torch.load(f'model/{args.model}.pkl', map_location=device)
+    model.load_state_dict(model_dicts)
+    model.eval()
 n_param = 0
 for name, param in model.named_parameters():
     print(f'\t{name}: {param.shape}')
@@ -212,7 +218,11 @@ for epoch in range(0, args.epochs + 1):
 
 
     def train(ltg):
-        model.train()
+        if args.trans:
+            for p in model.net_readout_params:
+                p.train()
+        else:
+            model.train()
         t1 = time()
         losses = []
         n_tuples = len(ltg)
@@ -224,8 +234,8 @@ for epoch in range(0, args.epochs + 1):
             if args.pos_code > 1e-5 and args.topo_geom != 'topo':
                 in_node_feat += args.pos_code * hetero_graph.nodes['node'].data['pos_code']
             if args.topo_geom == 'topo':
-                in_node_feat = in_node_feat[:, [0, 1, 2, 7, 8, 9]]
-                in_net_feat = in_net_feat[:, [0]]
+                in_node_feat = in_node_feat[:, NODE_TOPO_FEAT]
+                in_net_feat = in_net_feat[:, NET_TOPO_FEAT]
             if args.add_pos:
                 in_node_feat = torch.cat([in_node_feat, homo_graph.ndata['pos']], dim=-1)
             pred, _ = model.forward(
@@ -275,8 +285,8 @@ for epoch in range(0, args.epochs + 1):
                 if args.pos_code > 1e-5 and args.topo_geom != 'topo':
                     in_node_feat += args.pos_code * hetero_graph.nodes['node'].data['pos_code']
                 if args.topo_geom == 'topo':
-                    in_node_feat = in_node_feat[:, [0, 1, 2, 7, 8, 9]]
-                    in_net_feat = in_net_feat[:, [0]]
+                    in_node_feat = in_node_feat[:, NODE_TOPO_FEAT]
+                    in_net_feat = in_net_feat[:, NET_TOPO_FEAT]
                 if args.add_pos:
                     in_node_feat = torch.cat([in_node_feat, homo_graph.ndata['pos']], dim=-1)
                 prd, _ = model.forward(
@@ -301,8 +311,8 @@ for epoch in range(0, args.epochs + 1):
         #         print(f'\t\ttarget/predict: {np.max(outputdata[:, 0]):.3f}, {np.max(outputdata[:, 1]):.3f}')
         #         exit(123)
         if args.topo_geom != 'topo':
-            bad_node = np.logical_or(outputdata[:, 4] < 0.5, outputdata[:, 4] > 17.5)
-        #                 bad_node = outputdata[:, 4] < 2.5
+            # bad_node = np.logical_or(outputdata[:, 4] < 0.5, outputdata[:, 4] > 17.5)
+            bad_node = outputdata[:, 4] < 0.5
             outputdata[bad_node, 1] = outputdata[bad_node, 0]
         #             outputdata = outputdata[np.logical_and(outputdata[:, 4] > 0, outputdata[:, 4] < 5), :]
         #             outputdata = outputdata[outputdata[:, 4] > 5, :]

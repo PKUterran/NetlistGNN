@@ -24,17 +24,17 @@ argparser.add_argument('--win_cap', type=int, default=5)
 args = argparser.parse_args()
 
 dataset_names = [
-#     'superblue_0425_withHPWL/superblue6_processed',
-#     'superblue_0425_withHPWL/superblue7_processed',
-#     'superblue_0425_withHPWL/superblue9_processed',
-#     'superblue_0425_withHPWL/superblue14_processed',
-#     'superblue_0425_withHPWL/superblue16_processed',
-#     'superblue_0425_withHPWL/superblue19_processed',
+    'superblue_0425_withHPWL/superblue6',
+    'superblue_0425_withHPWL/superblue7',
+    'superblue_0425_withHPWL/superblue9',
+    'superblue_0425_withHPWL/superblue14',
+    'superblue_0425_withHPWL/superblue16',
+    'superblue_0425_withHPWL/superblue19',
     
-#     'superblue_0425_withHPWL/superblue2_processed',
-    'superblue_0425_withHPWL/superblue3_processed',
-    'superblue_0425_withHPWL/superblue11_processed',
-    'superblue_0425_withHPWL/superblue12_processed',
+    'superblue_0425_withHPWL/superblue2',
+    'superblue_0425_withHPWL/superblue3',
+    'superblue_0425_withHPWL/superblue11',
+    'superblue_0425_withHPWL/superblue12',
 ]
 
 for dataset_name in dataset_names:
@@ -47,21 +47,21 @@ for dataset_name in dataset_names:
                       app_name=args.app_name,
                       win_x=args.win_x, win_y=args.win_y, win_cap=args.win_cap)
 
-# dump_data_lhnn('data/superblue_0425_withHPWL/superblue6_processed',
-#                'data/superblue_0425_withHPWL/superblue6', 811, 8, '100000', force_save=True, enable_net_label=True)
-# dump_data_lhnn('data/superblue_0425_withHPWL/superblue7_processed',
-#                'data/superblue_0425_withHPWL/superblue7', 800, 8, '100000', force_save=True, enable_net_label=True)
-# dump_data_lhnn('data/superblue_0425_withHPWL/superblue9_processed',
-#                'data/superblue_0425_withHPWL/superblue9', 800, 8, '100000', force_save=True, enable_net_label=True)
-# dump_data_lhnn('data/superblue_0425_withHPWL/superblue14_processed',
-#                'data/superblue_0425_withHPWL/superblue14', 700, 8, '100000', force_save=True, enable_net_label=True)
-# dump_data_lhnn('data/superblue_0425_withHPWL/superblue16_processed',
-#                'data/superblue_0425_withHPWL/superblue16', 700, 8, '100000', force_save=True, enable_net_label=True)
-# dump_data_lhnn('data/superblue_0425_withHPWL/superblue19_processed',
-#                'data/superblue_0425_withHPWL/superblue19', 700, 8, '100000', force_save=True, enable_net_label=True)
+dump_data_lhnn('data/superblue_0425_withHPWL/superblue6_processed',
+               'data/superblue_0425_withHPWL/superblue6', 811, 8, '100000', force_save=True, enable_net_label=True)
+dump_data_lhnn('data/superblue_0425_withHPWL/superblue7_processed',
+               'data/superblue_0425_withHPWL/superblue7', 800, 8, '100000', force_save=True, enable_net_label=True)
+dump_data_lhnn('data/superblue_0425_withHPWL/superblue9_processed',
+               'data/superblue_0425_withHPWL/superblue9', 800, 8, '100000', force_save=True, enable_net_label=True)
+dump_data_lhnn('data/superblue_0425_withHPWL/superblue14_processed',
+               'data/superblue_0425_withHPWL/superblue14', 700, 8, '100000', force_save=True, enable_net_label=True)
+dump_data_lhnn('data/superblue_0425_withHPWL/superblue16_processed',
+               'data/superblue_0425_withHPWL/superblue16', 700, 8, '100000', force_save=True, enable_net_label=True)
+dump_data_lhnn('data/superblue_0425_withHPWL/superblue19_processed',
+               'data/superblue_0425_withHPWL/superblue19', 700, 8, '100000', force_save=True, enable_net_label=True)
 
-# dump_data_lhnn('data/superblue_0425_withHPWL/superblue2_processed',
-#                'data/superblue_0425_withHPWL/superblue2', 586, 8, '100000', force_save=True, enable_net_label=True)
+dump_data_lhnn('data/superblue_0425_withHPWL/superblue2_processed',
+               'data/superblue_0425_withHPWL/superblue2', 586, 8, '100000', force_save=True, enable_net_label=True)
 dump_data_lhnn('data/superblue_0425_withHPWL/superblue3_processed',
                'data/superblue_0425_withHPWL/superblue3', 800, 8, '100000', force_save=True, enable_net_label=True)
 dump_data_lhnn('data/superblue_0425_withHPWL/superblue11_processed',

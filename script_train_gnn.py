@@ -74,18 +74,18 @@ arch.insert(0, 2 * nfeats + args.degdim)
 arch.append(1)
 
 train_dataset_names = [
-    'superblue1_processed',
-    'superblue2_processed',
-    'superblue3_processed',
-    'superblue5_processed',
-    'superblue6_processed',
-    'superblue7_processed',
-    'superblue9_processed',
-    'superblue11_processed',
-    'superblue14_processed',
+    'superblue1',
+    'superblue2',
+    'superblue3',
+    'superblue5',
+    'superblue6',
+    'superblue7',
+    'superblue9',
+    'superblue11',
+    'superblue14',
 ]
-validate_dataset_name = 'superblue16_processed'
-test_dataset_name = 'superblue19_processed'
+validate_dataset_name = 'superblue16'
+test_dataset_name = 'superblue19'
 
 train_list_tuple_graph, validate_list_tuple_graph, test_list_tuple_graph = [], [], []
 
