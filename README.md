@@ -29,10 +29,10 @@ Collect the data.
 
 Configurate `train_dataset_names`, `validate_dataset_name` and `test_dataset_name` in `script_ours_cong_train.py` and train model:
 ```commandline
-python script_ours_cong_train.py --name trained_model
+python script_ours_cong_train.py --name hyper
 ```
 
 Configurate `eval_dataset_names` in `script_ours_cong_eval.py` and evaluate model:
 ```commandline
-python script_ours_cong_eval.py --name eval --model trained_model
+python script_ours_cong_eval.py --name eval --model hyper
 ```
