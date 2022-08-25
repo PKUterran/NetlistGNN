@@ -53,7 +53,7 @@ def train_ours_cong(
 
     def get_ltg_from_dataset_name(dataset_name) -> List[Tuple[dgl.DGLGraph, dgl.DGLHeteroGraph]]:
         for i in range(0, args.itermax):
-            if os.path.isfile(f'data/{dataset_name}/iter_{i}_node_label_full_{args.hashcode}_.npy'):
+            if os.path.isfile(f'data/{dataset_name}_processed/iter_{i}_node_label_full_{args.hashcode}_.npy'):
                 print(f'Loading {dataset_name}:')
                 return fit_topo_geom(
                     load_data(f'data/{dataset_name}', i, args.idx, args.hashcode,
@@ -173,11 +173,12 @@ def train_ours_cong(
             scheduler.step()
             print(f"\tTraining time per epoch: {time() - t1}")
 
-        def evaluate(ltgs: List[List[Tuple[dgl.DGLGraph, dgl.DGLHeteroGraph]]], set_name: str):
+        def evaluate(ltgs: List[List[Tuple[dgl.DGLGraph, dgl.DGLHeteroGraph]]], set_name: str,
+                     explicit_names: List[str]):
             model.eval()
             print(f'\tEvaluate {set_name}:')
             ds = []
-            for i, ltg in enumerate(ltgs):
+            for data_name, ltg in zip(explicit_names, ltgs):
                 n_node = sum(map(lambda x: x[0].number_of_nodes(), ltg))
                 outputdata = np.zeros((n_node, 5))
                 p = 0
@@ -197,6 +198,7 @@ def train_ours_cong(
                 if args.topo_geom != 'topo':
                     bad_node = outputdata[:, 4] < 0.5
                     outputdata[bad_node, 1] = outputdata[bad_node, 0]
+                print(f'\t{data_name}:')
                 d = printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
                 if model_dir is not None and set_name == 'validate_':
                     rmse = d[f'{set_name}node_level_rmse']
@@ -206,10 +208,10 @@ def train_ours_cong(
                         print(f'\tSaving model to {model_dir}/ ...:')
                         torch.save(model.state_dict(), f'{model_dir}/{args.name}.pkl')
 
-                if fig_dir is not None and set_name == 'test_' and test_dataset_names[i] == 'superblue19':
+                if fig_dir is not None and data_name == 'superblue19':
                     store_cong_from_node(outputdata[:, 0], outputdata[:, 1], outputdata[:, 2], outputdata[:, 3],
                                          args.binx, args.biny, [321, 518],
-                                         f'{args.name}-{set_name}', epoch=epoch, fig_dir=fig_dir)
+                                         f'{args.name}-{data_name}', epoch=epoch, fig_dir=fig_dir)
                 d1, d2 = get_grid_level_corr(outputdata[:, :4], args.binx, args.biny,
                                              int(np.rint(np.max(outputdata[:, 2]) / args.binx)) + 1,
                                              int(np.rint(np.max(outputdata[:, 3]) / args.biny)) + 1,
@@ -226,11 +228,11 @@ def train_ours_cong(
                 train(train_list_netlist)
         logs[-1].update({'train_time': time() - t0})
         t2 = time()
-        evaluate(train_list_netlist, 'train_')
+        evaluate(train_list_netlist, 'train_', train_dataset_names)
         if len(validate_list_netlist):
-            evaluate(validate_list_netlist, 'validate_')
+            evaluate(validate_list_netlist, 'validate_', validate_dataset_names)
         if len(test_dataset_names):
-            evaluate(test_list_netlist, 'test_')
+            evaluate(test_list_netlist, 'test_', test_dataset_names)
         # exit(123)
         print("\tinference time", time() - t2)
         logs[-1].update({'eval_time': time() - t2})

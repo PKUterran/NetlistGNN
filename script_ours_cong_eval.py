@@ -65,11 +65,7 @@ eval_dataset_names = [  # cannot be empty!!!
     'superblue9',
     'superblue11',
     'superblue14',
-]
-validate_dataset_names = [
     'superblue16',
-]
-test_dataset_names = [
     'superblue19'
 ]
 
