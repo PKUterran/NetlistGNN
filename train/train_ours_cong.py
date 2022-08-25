@@ -198,7 +198,7 @@ def train_ours_cong(
                     bad_node = outputdata[:, 4] < 0.5
                     outputdata[bad_node, 1] = outputdata[bad_node, 0]
                 d = printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
-                if set_name == 'validate_':
+                if model_dir is not None and set_name == 'validate_':
                     rmse = d[f'{set_name}node_level_rmse']
                     nonlocal best_rmse
                     if rmse < best_rmse:
@@ -206,7 +206,7 @@ def train_ours_cong(
                         print(f'\tSaving model to {model_dir}/ ...:')
                         torch.save(model.state_dict(), f'{model_dir}/{args.name}.pkl')
 
-                if set_name == 'test_' and test_dataset_names[i] == 'superblue19':
+                if fig_dir is not None and set_name == 'test_' and test_dataset_names[i] == 'superblue19':
                     store_cong_from_node(outputdata[:, 0], outputdata[:, 1], outputdata[:, 2], outputdata[:, 3],
                                          args.binx, args.biny, [321, 518],
                                          f'{args.name}-{set_name}', epoch=epoch, fig_dir=fig_dir)
@@ -227,10 +227,13 @@ def train_ours_cong(
         logs[-1].update({'train_time': time() - t0})
         t2 = time()
         evaluate(train_list_netlist, 'train_')
-        evaluate(validate_list_netlist, 'validate_')
-        evaluate(test_list_netlist, 'test_')
+        if len(validate_list_netlist):
+            evaluate(validate_list_netlist, 'validate_')
+        if len(test_dataset_names):
+            evaluate(test_list_netlist, 'test_')
         # exit(123)
         print("\tinference time", time() - t2)
         logs[-1].update({'eval_time': time() - t2})
-        with open(f'{log_dir}/{args.name}.json', 'w+') as fp:
-            json.dump(logs, fp)
+        if log_dir is not None:
+            with open(f'{log_dir}/{args.name}.json', 'w+') as fp:
+                json.dump(logs, fp)

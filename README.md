@@ -22,3 +22,17 @@ python script_train_sample.py
 3. Config and run `script_train.py` to train **CircuitGNN**:
    1. Beyond the args, `train_dataset_names`, `validate_dataset_name` and `test_dataset_name` should also be configured.
    2. At the first time of training, a Circuit Graph will be generated in `{data_dir}-processed/hetero_{given_iter}`. This might cost about an hour.
+
+## For industrial use
+
+Collect the data.
+
+Configurate `train_dataset_names`, `validate_dataset_name` and `test_dataset_name` in `script_ours_cong_train.py` and train model:
+```commandline
+python script_ours_cong_train.py --name trained_model
+```
+
+Configurate `eval_dataset_names` in `script_ours_cong_eval.py` and evaluate model:
+```commandline
+python script_ours_cong_eval.py --name eval --model trained_model
+```
