@@ -124,7 +124,6 @@ def train_ours_cong(
         logs.append({'epoch': epoch})
 
         def forward(homo_graph, hetero_graph):
-            homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
             optimizer.zero_grad()
             in_node_feat = hetero_graph.nodes['node'].data['hv']
             in_net_feat = hetero_graph.nodes['net'].data['hv']
@@ -157,6 +156,7 @@ def train_ours_cong(
             losses = []
             n_tuples = len(ltg)
             for j, (homo_graph, hetero_graph) in enumerate(ltg):
+                homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
                 pred = forward(homo_graph, hetero_graph)
                 batch_labels = homo_graph.ndata['label']
                 weight = 1 / hetero_graph.nodes['node'].data['hv'][:, 6]
