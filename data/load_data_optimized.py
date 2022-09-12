@@ -168,6 +168,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
                 + (ydata[a] + sizdata_y[a] * 0.5 - ydata[b] - sizdata_y[b] * 0.5) ** 2) ** 0.5
 
     # hetero_graph
+    print('\thetero_graph generating...')
     n_dim = homo_graph.ndata['feat'].shape[1]
     us, vs, he = [], [], []
     net_degree, net_label = [], []
@@ -268,6 +269,8 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
         part_hetero_graph = dgl.node_subgraph(hetero_graph, nodes={'node': partition, 'net': keep_nets_id})
         list_hetero_graph.append(part_hetero_graph)
     print('\thetero_graph generated 3/3')
+    print(f'\thetero_graph with {n_node} cells, {len(net_degree)} nets, '
+          f'{len(us)} topo-edges and {len(us4)} geom-edges.')
 
     list_tuple_graph = list(zip(list_homo_graph, list_hetero_graph))
     with open(file_path, 'wb+') as fp:
