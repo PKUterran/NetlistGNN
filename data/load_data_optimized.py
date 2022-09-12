@@ -235,7 +235,8 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
                 vs.extend(vs_)
             us4.extend(us)
             vs4.extend(vs)
-    dis4 = [[distance_among(u, v) / 24] for u, v in zip(us4, vs4)]
+    iter_uv4 = tqdm.tqdm(zip(us4, vs4), total=len(us4)) if use_tqdm else zip(us4, vs4)
+    dis4 = [[distance_among(u, v) / 24] for u, v in iter_uv4]
     print('\thetero_graph generated 2/3')
 
     hetero_graph = dgl.heterograph({
