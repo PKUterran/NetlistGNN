@@ -10,7 +10,7 @@ import dgl
 import torch
 import torch.nn as nn
 
-from data.load_data import load_data, NODE_TOPO_FEAT, NET_TOPO_FEAT
+from data.load_data_optimized import load_data, NODE_TOPO_FEAT, NET_TOPO_FEAT
 from net.NetlistGNN import NetlistGNN
 from log.store_cong import store_cong_from_node
 from utils.output import printout, get_grid_level_corr, mean_dict
