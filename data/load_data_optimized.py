@@ -172,7 +172,8 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     us, vs, he = [], [], []
     net_degree, net_label = [], []
     net_span_feat = []
-    for net, list_node_feats in edge.items():
+    iter_edge = tqdm.tqdm(edge.items(), total=len(edge)) if use_tqdm else edge.items()
+    for net, list_node_feats in iter_edge:
         net_degree.append(len(list_node_feats))
         net_label.append(net2hpwl[net] if net2hpwl is not None else 0)
         n_pin = len(list_node_feats)
@@ -205,6 +206,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     net_span_feat_ = torch.tensor(net_span_feat, dtype=torch.float32)
     net_label = torch.unsqueeze(torch.tensor(net_label, dtype=torch.float32), dim=-1)
     net_hv = torch.cat([net_degree_, net_span_feat_], dim=-1)
+    print('\thetero_graph generated 1/3')
 
     us4, vs4 = [], []
     for off_idx, (x_offset, y_offset) in enumerate(
@@ -213,7 +215,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
         for partition in iter_partition_list:
             box_node = {}
             for i, sx, sy, px, py in \
-                    zip(partition, sizdata_x[partition], sizdata_y[partition], [partition], ydata[partition]):
+                    zip(partition, sizdata_x[partition], sizdata_y[partition], xdata[partition], ydata[partition]):
                 if i >= n_node:
                     continue
                 if px == 0 and py == 0:
@@ -233,7 +235,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
             us4.extend(us)
             vs4.extend(vs)
     dis4 = [[distance_among(u, v) / 24] for u, v in zip(us4, vs4)]
-    print('\thetero_graph generated 1/2')
+    print('\thetero_graph generated 2/3')
 
     hetero_graph = dgl.heterograph({
         ('node', 'near', 'node'): (us4, vs4),
@@ -265,7 +267,7 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
         keep_nets_id = keep_nets_id[good_nets]
         part_hetero_graph = dgl.node_subgraph(hetero_graph, nodes={'node': partition, 'net': keep_nets_id})
         list_hetero_graph.append(part_hetero_graph)
-    print('\thetero_graph generated 2/2')
+    print('\thetero_graph generated 3/3')
 
     list_tuple_graph = list(zip(list_homo_graph, list_hetero_graph))
     with open(file_path, 'wb+') as fp:
