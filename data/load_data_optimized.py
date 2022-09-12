@@ -170,6 +170,36 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     # hetero_graph
     print('\thetero_graph generating...')
     n_dim = homo_graph.ndata['feat'].shape[1]
+    us4, vs4 = [], []
+    for off_idx, (x_offset, y_offset) in enumerate(
+            [(0, 0), (win_x / 2, 0), (0, win_y / 2), (win_x / 2, win_y / 2)]):
+        iter_partition_list = tqdm.tqdm(partition_list, total=len(partition_list)) if use_tqdm else partition_list
+        for partition in iter_partition_list:
+            box_node = {}
+            for i, sx, sy, px, py in \
+                    zip(partition, sizdata_x[partition], sizdata_y[partition], xdata[partition], ydata[partition]):
+                if i >= n_node:
+                    continue
+                if px == 0 and py == 0:
+                    continue
+                px += x_offset
+                py += y_offset
+                x_1, x_2 = int(px / win_x), int((px + sx) / win_x)
+                y_1, y_2 = int(py / win_y), int((py + sy) / win_y)
+                for x in range(x_1, x_2 + 1):
+                    for y in range(y_1, y_2 + 1):
+                        box_node.setdefault(f'{x}-{y}', []).append(i)
+            us, vs = [], []
+            for nodes in box_node.values():
+                us_, vs_ = node_pairs_among(nodes, max_cap=win_cap)
+                us.extend(us_)
+                vs.extend(vs_)
+            us4.extend(us)
+            vs4.extend(vs)
+    iter_uv4 = tqdm.tqdm(zip(us4, vs4), total=len(us4)) if use_tqdm else zip(us4, vs4)
+    dis4 = [[distance_among(u, v) / 24] for u, v in iter_uv4]
+    print('\thetero_graph generated 1/3')
+
     us, vs, he = [], [], []
     net_degree, net_label = [], []
     net_span_feat = []
@@ -207,36 +237,6 @@ def load_data(dir_name: str, given_iter, index: int, hashcode: str,
     net_span_feat_ = torch.tensor(net_span_feat, dtype=torch.float32)
     net_label = torch.unsqueeze(torch.tensor(net_label, dtype=torch.float32), dim=-1)
     net_hv = torch.cat([net_degree_, net_span_feat_], dim=-1)
-    print('\thetero_graph generated 1/3')
-
-    us4, vs4 = [], []
-    for off_idx, (x_offset, y_offset) in enumerate(
-            [(0, 0), (win_x / 2, 0), (0, win_y / 2), (win_x / 2, win_y / 2)]):
-        iter_partition_list = tqdm.tqdm(partition_list, total=len(partition_list)) if use_tqdm else partition_list
-        for partition in iter_partition_list:
-            box_node = {}
-            for i, sx, sy, px, py in \
-                    zip(partition, sizdata_x[partition], sizdata_y[partition], xdata[partition], ydata[partition]):
-                if i >= n_node:
-                    continue
-                if px == 0 and py == 0:
-                    continue
-                px += x_offset
-                py += y_offset
-                x_1, x_2 = int(px / win_x), int((px + sx) / win_x)
-                y_1, y_2 = int(py / win_y), int((py + sy) / win_y)
-                for x in range(x_1, x_2 + 1):
-                    for y in range(y_1, y_2 + 1):
-                        box_node.setdefault(f'{x}-{y}', []).append(i)
-            us, vs = [], []
-            for nodes in box_node.values():
-                us_, vs_ = node_pairs_among(nodes, max_cap=win_cap)
-                us.extend(us_)
-                vs.extend(vs_)
-            us4.extend(us)
-            vs4.extend(vs)
-    iter_uv4 = tqdm.tqdm(zip(us4, vs4), total=len(us4)) if use_tqdm else zip(us4, vs4)
-    dis4 = [[distance_among(u, v) / 24] for u, v in iter_uv4]
     print('\thetero_graph generated 2/3')
 
     hetero_graph = dgl.heterograph({
