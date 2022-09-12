@@ -183,6 +183,7 @@ def train_ours_cong(
                 outputdata = np.zeros((n_node, 5))
                 p = 0
                 for j, (homo_graph, hetero_graph) in enumerate(ltg):
+                    homo_graph, hetero_graph = to_device(homo_graph, hetero_graph)
                     pred = forward(homo_graph, hetero_graph)
                     density = homo_graph.ndata['feat'][:, 6].cpu().data.numpy()
                     output_labels = homo_graph.ndata['label']
