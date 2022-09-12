@@ -30,7 +30,7 @@ def printout_xf1(arr1, arr2, prefix="", log_prefix="") -> Dict[str, Any]:
     }
 
 
-def printout(arr1, arr2, prefix="", log_prefix="") -> Dict[str, float]:
+def printout(arr1, arr2, prefix="", log_prefix="", verbose=True) -> Dict[str, float]:
     pearsonr_rho, pearsonr_pval = pearsonr(arr1, arr2)
     spearmanr_rho, spearmanr_pval = spearmanr(arr1, arr2)
     kendalltau_rho, kendalltau_pval = kendalltau(arr1, arr2)
@@ -45,14 +45,15 @@ def printout(arr1, arr2, prefix="", log_prefix="") -> Dict[str, float]:
     delta = np.abs(arr1 - arr2)
     rmse = np.sqrt(np.sum(np.multiply(delta, delta)) / len(arr1))
 
-    print(prefix + "pearson", pearsonr_rho, pearsonr_pval)
-    print(prefix + "spearman", spearmanr_rho, spearmanr_pval)
-    print(prefix + "kendall", kendalltau_rho, kendalltau_pval)
-    print(prefix + "precision", precision)
-    print(prefix + "recall", recall)
-    print(prefix + "f1-score", f1)
-    print(prefix + "MAE", mae)
-    print(prefix + "RMSE", rmse)
+    if verbose:
+        print(prefix + "pearson", pearsonr_rho, pearsonr_pval)
+        print(prefix + "spearman", spearmanr_rho, spearmanr_pval)
+        print(prefix + "kendall", kendalltau_rho, kendalltau_pval)
+        print(prefix + "precision", precision)
+        print(prefix + "recall", recall)
+        print(prefix + "f1-score", f1)
+        print(prefix + "MAE", mae)
+        print(prefix + "RMSE", rmse)
     return {
         f'{log_prefix}pearson_rho': pearsonr_rho,
         f'{log_prefix}pearsonr_pval': pearsonr_pval,
@@ -73,7 +74,7 @@ def rademacher(intensity, numindices):
     return intensity * (2 * arr - 1)
 
 
-def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name=''
+def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name='', verbose=True
                         ) -> Tuple[Dict[str, float], Dict[str, float]]:
     nodetarg, nodepred, posx, posy = [posandpred[:, i] for i in range(0, posandpred.shape[1])]
     cmap_tgt = np.zeros((xgridshape, ygridshape))
@@ -103,9 +104,8 @@ def get_grid_level_corr(posandpred, binx, biny, xgridshape, ygridshape, set_name
     nctu, pred = np.multiply(nctu, getmask), np.multiply(pred, getmask)
     #     printout(nctu[indices] + rademacher(1e-6, len(indices)), pred[indices] + rademacher(1e-6, len(indices)),
     #              "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
-    d1 = printout(nctu[indices], pred[indices],
-                  "\t\tGRID_INDEX: ", f'{set_name}grid_index_')
-    d2 = printout(nctu, pred, "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_')
+    d1 = printout(nctu[indices], pred[indices], "\t\tGRID_INDEX: ", f'{set_name}grid_index_', verbose=verbose)
+    d2 = printout(nctu, pred, "\t\tGRID_NO_INDEX: ", f'{set_name}grid_no_index_', verbose=verbose)
     return d1, d2
 
 
