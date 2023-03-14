@@ -174,7 +174,7 @@ def train_ours_cong(
             print(f"\tTraining time per epoch: {time() - t1}")
 
         def evaluate(ltgs: List[List[Tuple[dgl.DGLGraph, dgl.DGLHeteroGraph]]], set_name: str,
-                     explicit_names: List[str]):
+                     explicit_names: List[str], verbose=True):
             model.eval()
             print(f'\tEvaluate {set_name}:')
             ds = []
@@ -200,13 +200,14 @@ def train_ours_cong(
                     bad_node = outputdata[:, 4] < 0.5
                     outputdata[bad_node, 1] = outputdata[bad_node, 0]
                 print(f'\t{data_name}:')
-                d = printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_')
+                d = printout(outputdata[:, 0], outputdata[:, 1], "\t\tNODE_LEVEL: ", f'{set_name}node_level_',
+                             verbose=verbose)
                 if model_dir is not None and set_name == 'validate_':
                     rmse = d[f'{set_name}node_level_rmse']
                     nonlocal best_rmse
                     if rmse < best_rmse:
                         best_rmse = rmse
-                        print(f'\tSaving model to {model_dir}/ ...:')
+                        print(f'\tSaving model to {model_dir}/{args.name}.pkl ...:')
                         torch.save(model.state_dict(), f'{model_dir}/{args.name}.pkl')
 
                 if fig_dir is not None and data_name == 'superblue19':
@@ -216,7 +217,7 @@ def train_ours_cong(
                 d1, d2 = get_grid_level_corr(outputdata[:, :4], args.binx, args.biny,
                                              int(np.rint(np.max(outputdata[:, 2]) / args.binx)) + 1,
                                              int(np.rint(np.max(outputdata[:, 3]) / args.biny)) + 1,
-                                             set_name=set_name)
+                                             set_name=set_name, verbose=verbose)
                 d.update(d1)
                 d.update(d2)
                 ds.append(d)
@@ -229,7 +230,7 @@ def train_ours_cong(
                 train(train_list_netlist)
         logs[-1].update({'train_time': time() - t0})
         t2 = time()
-        evaluate(train_list_netlist, 'train_', train_dataset_names)
+        evaluate(train_list_netlist, 'train_', train_dataset_names, verbose=False)
         if len(validate_list_netlist):
             evaluate(validate_list_netlist, 'validate_', validate_dataset_names)
         if len(test_dataset_names):
